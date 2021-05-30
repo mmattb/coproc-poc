@@ -17,6 +17,9 @@ class Lesion(object):
     def lesion(self, network, pre_response):
         raise NotImplementedError()
 
+    def __str__(self):
+        raise NotImplementedError()
+
 
 class LesionOutputs(Lesion):
     def __init__(self, num_neurons_per_module, module_id, pct):
@@ -25,9 +28,14 @@ class LesionOutputs(Lesion):
         kill_idxs = random.sample(list(range(start_idx, end_idx)),
                 int(pct * num_neurons_per_module))
         self.lesion_mask[kill_idxs] = 0.0
+        self.module_id = module_id
+        self.pct = pct
 
     def lesion(self, network, pre_response):
         batch_size = pre_response.shape[0]
         out = pre_response * torch.tile(self.lesion_mask, (batch_size, 1))
         return out
+
+    def __str__(self):
+        return f"outputs{self.module_id}.{self.pct}"
 

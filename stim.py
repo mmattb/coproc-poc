@@ -24,6 +24,9 @@ class Stimulus(object):
     def reset(self):
         pass
 
+    def __str__(self):
+        raise NotImplementedError()
+
 
 class Stimulus1to1(Stimulus):
     def __init__(self, num_stim_channels, num_neurons, pad_right_neurons=200):
@@ -82,6 +85,9 @@ class Stimulus1to1(Stimulus):
         # (1, num_neurons)
         return stim_out
 
+    def __str__(self):
+        return "1to1"
+
 
 class StimulusGaussian(Stimulus1to1):
     def __init__(
@@ -99,3 +105,6 @@ class StimulusGaussian(Stimulus1to1):
             self._num_neurons, self._num_stim_channels, distance_func=self._norm.pdf
         )
         return W
+
+    def __str__(self):
+        return f"gaussian{self.num_stim_channels}.{self._sigma}"

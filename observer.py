@@ -27,6 +27,9 @@ class Observer(object):
     def __call__(self, x):
         return self.observe(x)
 
+    def __str__(self):
+        raise NotImplementedError()
+
 
 class ObserverGaussian1d(Observer):
     def __init__(self, in_dim, out_dim=30, sigma=1):
@@ -43,6 +46,9 @@ class ObserverGaussian1d(Observer):
                 x.reshape(x.shape + (1,))
         return reduced.squeeze(axis=-1)
 
+    def __str__(self):
+        return f"gaussian{self.out_dim}.{self.sigma}"
+
 class ObserverPassthrough(Observer):
     def __init__(self, in_dim):
         self._in_dim = in_dim
@@ -50,3 +56,6 @@ class ObserverPassthrough(Observer):
 
     def reduce(self, x):
         return x
+
+    def __str__(self):
+        return "passthrough"

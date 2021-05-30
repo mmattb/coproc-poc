@@ -1,5 +1,6 @@
 import os
 import random
+import time
 
 import h5py
 import numpy as np
@@ -88,8 +89,8 @@ def _generate(
     output_dim = ob.out_dim * 3
 
     for eidx in range(num_examples):
-        if not (eidx % 1):
-            print(f"Generating example {eidx}")
+        if not (eidx % 100):
+            print(f"{time.time()} Generating example {eidx}")
 
         mrnn.reset_hidden()
 

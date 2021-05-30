@@ -442,7 +442,7 @@ def generate(
     mrnn = MichaelsRNN(init_data_path=init_data_path, stimulus=stimulus, lesion=lesion)
 
     if recover_after_lesion:
-        torch.save(mrnn.state_dict(), "pre_" + model_path)
+        torch.save(mrnn.state_dict(), model_path + "_pre")
 
         dataset = MichaelsDataset(init_data_path)
         optimizer = Adam(mrnn.parameters(), lr=0.008)

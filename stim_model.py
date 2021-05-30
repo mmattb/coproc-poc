@@ -155,7 +155,6 @@ def train_model(dataset,
 
             loss.backward()
             optimizer.step()
-            import time; time.sleep(3)
 
         if train_stop_thresh is not None and train_stop_thresh >= min_loss:
             break
