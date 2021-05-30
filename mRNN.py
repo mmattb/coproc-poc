@@ -495,7 +495,12 @@ def generate(
     torch.save(mrnn.state_dict(), model_path)
     return mrnn
 
-def load_from_file(data_path, **kwargs):
+def load_from_file(data_path, pretrained=False, **kwargs):
     mrnn = MichaelsRNN(**kwargs)
     mrnn.load_weights_from_file(data_path)
+
+    if pretrained:
+        for param in mrnn.parameters():
+            param.requires_grad = False
+
     return mrnn

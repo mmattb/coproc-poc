@@ -109,6 +109,15 @@ class StimDataset(Dataset):
     def __getitem__(self, idx):
         return self.data[idx]
 
+def load_from_file(model_path, pretrained=False):
+    ben = StimModel(**kwargs)
+    ben.load_weights_from_file(model_path)
+
+    if pretrained:
+        for param in ben.parameters():
+            param.requires_grad = False
+
+    return ben
 
 def train_model(dataset,
     model,
@@ -169,7 +178,7 @@ def train_new(
     train_max_epochs=2000,
     batch_size=64,
     train_pct_stop_thresh=None,
-    train_stop_thresh=None,
+    train_stop_thresh=0.0001,
     model_save_path=None,
 ):
 
