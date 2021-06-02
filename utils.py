@@ -44,35 +44,16 @@ def gaussian_array_weights(in_dim, out_dim, sigma, normalize=False):
     )
 
 
-def alpha(gmax, tau=5, onset=0, thresh=1e-6, time_scalar=1):
+def alpha(gmax, t, tau=5, onset=0, time_scalar=1):
     """
     Inspired by: https://www.sas.upenn.edu/LabManuals/BBB251/NIA/NEUROLAB/HELP/alphasyn.htm
+
+    gmax: (batch_size, num_stim_channels)
+    out: (batch_size, num_stim_channels)
     """
-
-    v_out = []
-    i = 0
-
-    v = (
-        gmax
-        * time_scalar
-        * (i - onset)
-        / tau
-        * math.exp(-1 * time_scalar * (i - onset - tau) / tau)
-    )
-    v_out.append(v)
-
-    while abs(v) > thresh or i < (onset + tau):
-        i += 1
-        v = (
-            gmax
-            * time_scalar
-            * (i - onset)
-            / tau
-            * math.exp(-1 * time_scalar * (i - onset - tau) / tau)
-        )
-        v_out.append(v)
-
-    return np.array(v_out)
+    v = (gmax * time_scalar * (t - onset) / tau)
+    v *= np.exp(-1 * time_scalar * (t - onset - tau) / tau)
+    return v
 
 
 def hash_model_data_name(

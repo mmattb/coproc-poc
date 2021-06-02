@@ -27,7 +27,7 @@ sparsity = 0.1
 
 
 # Scalars for regularizers
-sc_loss_fr = 1e-1
+sc_loss_fr = 1e-3
 sc_loss_io = 1e-5
 
 
@@ -240,9 +240,9 @@ class MichaelsRNN(nn.Module):
     def tau_inv(self):
         return 1.0 / self.tau
 
-    def reset_stim(self):
+    def reset_stim(self, batch_size=None):
         if self.stimulus is not None:
-            self.stimulus.reset()
+            self.stimulus.reset(batch_size=batch_size)
 
     def reset_hidden(self):
         self.reset_stim()
@@ -286,6 +286,7 @@ class MichaelsRNN(nn.Module):
             if self.lesion is not None:
                 self.x = self.lesion.lesion(self, self.x)
             self.prev_output = self.activation_func(self.x)
+            self.reset_stim(batch_size=batch_size)
         elif batch_size != self.prev_output.shape[0]:
             raise RuntimeError(
                 "Must have the same batch size every time step. "
@@ -310,7 +311,7 @@ class MichaelsRNN(nn.Module):
         # x broadcast up from (numn,) to (batch_size, numn)
         tdx = -self.x + recur + inp + self.B.T
         if self.stimulus is not None:
-            tdx += self.stimulus.get_next()
+            tdx += self.get_next_stimulus()
 
         pre_response = self.x + tdx / 10
         assert pre_response.shape == (batch_size, self.num_neurons)
@@ -366,6 +367,10 @@ class MichaelsRNN(nn.Module):
     def stimulate(self, params):
         self.stimulus.add(params)
 
+    def get_next_stimulus(self):
+        # (batch_size, num_neurons)
+        return self.stimulus.get_next()
+
     # Firing rate regularizer
     def fr_reg(self):
         loss = self.sum_fr / self.denom_fr
@@ -395,6 +400,7 @@ class MichaelsDataset(Dataset):
         outs = f["targ"]
 
         self.num_samples = inps.shape[0]
+        #self.sample_len = min([s.shape[1] for s in inps])
         self.sample_len = max([s.shape[1] for s in inps])
 
         self.data = []
@@ -408,12 +414,14 @@ class MichaelsDataset(Dataset):
         cur_out = outs[idx]
 
         din = torch.empty((self.sample_len, cur_in.shape[0]), dtype=torch.float)
-        din[: cur_in.shape[1], :] = torch.tensor(cur_in.T[:, :])
-        din[cur_in.shape[1] :, :] = torch.tensor(cur_in.T[-1, :])
+        din[:self.sample_len, :] = torch.tensor(cur_in.T[:self.sample_len, :])
+        #din[: cur_in.shape[1], :] = torch.tensor(cur_in.T[:, :])
+        #din[cur_in.shape[1] :, :] = torch.tensor(cur_in.T[-1, :])
 
         dout = torch.empty((self.sample_len, cur_out.shape[0]), dtype=torch.float)
-        dout[: cur_out.shape[1], :] = torch.tensor(cur_out.T[:, :])
-        dout[cur_out.shape[1] :, :] = torch.tensor(cur_out.T[-1, :])
+        dout[:self.sample_len, :] = torch.tensor(cur_out.T[:self.sample_len, :])
+        #dout[: cur_out.shape[1], :] = torch.tensor(cur_out.T[:, :])
+        #dout[cur_out.shape[1] :, :] = torch.tensor(cur_out.T[-1, :])
 
         return din, dout
 
@@ -432,7 +440,7 @@ def generate(
     lesion=None,
     recover_after_lesion=True,
     recover_train_batch_size=64,
-    recover_train_pct_stop_thresh=0.003,
+    recover_train_pct_stop_thresh=0.0003,
     recover_train_max_epochs=1000,
 ):
 
@@ -469,7 +477,7 @@ def generate(
                     pred = mrnn(cur_in.T)
                     preds[:, tidx, :] = pred[:, :]
 
-                loss = torch.nn.MSELoss()(preds, dout)
+                loss = mrnn.calc_loss(preds, dout)
                 losses.append(loss.item())
 
                 loss.backward()

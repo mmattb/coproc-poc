@@ -1,16 +1,21 @@
 import sys
+import time
 
 import h5py
 import numpy as np
 import torch
 import torch.autograd
 from torch import nn
-from torch.optim import Adam
+from torch.optim import AdamW
 from torch.utils.data import Dataset, DataLoader
 
 import mRNN
+import stim
 import stim_model
 import utils
+
+
+DEFAULT_STIM_REG_WEIGHT = 1e-7
 
 
 class CPNModel(nn.Module):
@@ -48,9 +53,27 @@ class CPNModel(nn.Module):
         self.prev_output = None
         self.x0 = None
 
+        # Stim regularizer
+        self.stim_reg = 0.0
+        self.steps = 0
+
     def reset(self):
         self.x = None
         self.prev_output = None
+        self.stim_reg = None
+        self.steps = 0
+
+    def reset_stim_regularizer(self, batch_size):
+        self.stim_reg = torch.zeros((batch_size,))
+
+    def stim_regularizer(self):
+        return torch.sum(self.stim_reg) / (
+            self.steps + self.out_dim + self.stim_reg.shape[0]
+        )
+
+    def accum_stim_regularizer(self, readout):
+        self.steps += 1
+        self.stim_reg += torch.sum(readout, axis=1) ** 2
 
     def forward(self, din):
         """
@@ -63,6 +86,7 @@ class CPNModel(nn.Module):
             self.x0 = torch.zeros((batch_size, self.num_neurons))
             self.x = self.x0
             self.prev_output = torch.zeros((batch_size, self.num_neurons))
+            self.reset_stim_regularizer(batch_size)
 
         x = self.W.reshape((1,) + self.W.shape) @ self.prev_output.reshape(
             self.prev_output.shape + (1,)
@@ -76,7 +100,9 @@ class CPNModel(nn.Module):
         rnn_output = self.activation_func(x)
         readout = self.fc(rnn_output)
 
+        # self.accum_stim_regularizer(readout)
         self.prev_output = rnn_output
+
         return readout
 
 
@@ -109,6 +135,7 @@ class CPNTrainDataset(Dataset):
         return self.data[idx]
 
 
+bi = None
 def train_model(
     dataset,
     model,
@@ -120,20 +147,20 @@ def train_model(
     in_dim,
     out_dim,
     train_max_epochs=2000,
+    stim_reg_weight=DEFAULT_STIM_REG_WEIGHT,
     batch_size=64,
     train_pct_stop_thresh=None,
     train_stop_thresh=None,
     model_save_path=None,
 ):
     obs = observer_instance
-    losses = []
     min_loss = None
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     for eidx in range(train_max_epochs):
         print(f"Epoch: {eidx}")
         for i_batch, sampled_batch in enumerate(loader):
             model.reset()
-            mrnn.reset()
+            mrnn.reset_hidden()
             ben.reset()
             optimizer.zero_grad()
 
@@ -149,13 +176,20 @@ def train_model(
 
                 # NOTE: if our loss is based on task performance, we can
                 # get outputs here.
-                mrnn(cur_in)
+                mrnn(cur_in.T)
                 observations = mrnn.observe(obs)
 
-                stim_params = model(observations)
-                print(cur_in.shape, stim_params.shape)
-                ben_in = torch.cat(cur_in, stim_params, axis=1)
-                print(ben_in.shape)
+                obs_vecs = [
+                    torch.tensor(o, dtype=torch.float, requires_grad=False)
+                    for o in observations
+                ]
+                obs_vec = torch.cat(obs_vecs, axis=1)
+
+                stim_params = model(obs_vec)
+                ben_in = torch.cat((obs_vec, stim_params), axis=1)
+                ben_in.retain_grad()
+                global bi
+                bi = ben_in
                 ben_pred = ben(ben_in)
 
                 mrnn.stimulate(stim_params)
@@ -164,10 +198,13 @@ def train_model(
                 # based only on the last module (smallest indices).
                 ben_preds[:, tidx, :] = ben_pred[:, : obs.out_dim]
 
-            # NOTE: here we can have a loss pbased on task performance,
+            # NOTE: here we can have a loss based on task performance,
             # or brain state
-            loss = torch.nn.MSELoss()(preds, dout)
-            losses.append(loss.item())
+
+            loss = torch.nn.MSELoss()(ben_preds, dout)
+            # reg_loss = model.stim_regularizer() * stim_reg_weight
+            # loss += reg_loss
+            print(loss)
 
             if min_loss is None:
                 min_loss = loss.item()
@@ -178,6 +215,7 @@ def train_model(
                 min_loss = loss.item()
 
             loss.backward()
+            import pdb; pdb.set_trace()
             optimizer.step()
 
         if train_stop_thresh is not None and train_stop_thresh >= min_loss:
@@ -185,6 +223,67 @@ def train_model(
 
     if eidx >= train_max_epochs:
         sys.stderr.write(f"Learning didn't converage after {eidx} epochs\n")
+
+
+def prep_new(
+    train_data_path,
+    mrnn_model_path,
+    ben_model_path,
+    observer_instance,
+    lesion,
+    stimulus,
+    activation_func,
+    learning_rate=0.008,
+    train_max_epochs=2000,
+    stim_reg_weight=DEFAULT_STIM_REG_WEIGHT,
+    batch_size=64,
+    train_pct_stop_thresh=None,
+    train_stop_thresh=0.0001,
+    model_save_path=None,
+):
+
+    torch.autograd.set_detect_anomaly(True)
+    print("Loading dataset; this may take awhile...")
+    dataset = CPNTrainDataset(train_data_path)
+
+    example_len = dataset[0][0].shape[0]
+    obs_vec_dim = 3 * observer_instance.out_dim
+    in_dim = obs_vec_dim
+    out_dim = stimulus.num_stim_channels
+
+    mrnn = mRNN.load_from_file(
+        mrnn_model_path, pretrained=True, stimulus=stimulus, lesion=lesion
+    )
+
+    # NOTE: if we want to lock ben, do it here with the 'pretrained' kwarg
+    ben_in_dim = obs_vec_dim + stimulus.num_stim_channels
+    ben_out_dim = obs_vec_dim
+    ben = stim_model.load_from_file(
+        ben_model_path,
+        ben_in_dim,
+        ben_out_dim,
+    )
+    model = CPNModel(in_dim, out_dim, activation_func=activation_func)
+
+    optimizer = AdamW(model.parameters(), lr=learning_rate)
+
+    return (
+        dataset,
+        model,
+        mrnn,
+        ben,
+        observer_instance,
+        optimizer,
+        example_len,
+        in_dim,
+        out_dim,
+        train_max_epochs,
+        stim_reg_weight,
+        batch_size,
+        train_pct_stop_thresh,
+        train_stop_thresh,
+        model_save_path,
+    )
 
 
 def train_new(
@@ -197,42 +296,27 @@ def train_new(
     activation_func,
     learning_rate=0.008,
     train_max_epochs=2000,
+    stim_reg_weight=DEFAULT_STIM_REG_WEIGHT,
     batch_size=64,
     train_pct_stop_thresh=None,
     train_stop_thresh=0.0001,
     model_save_path=None,
 ):
-
-    torch.autograd.set_detect_anomaly(True)
-    print("Loading dataset; this may take awhile...")
-    dataset = CPNTrainDataset(train_data_path)
-
-    example_len = dataset[0][0].shape[0]
-    in_dim = dataset[0][0].shape[1]
-    out_dim = stimulus.num_stim_channels
-
-    mrnn = mRNN.load_from_file(
-        mrnn_model_path, pretrained=True, stimulus=stimulus, lesion=lesion
-    )
-
-    # NOTE: if we want to lock ben, do it here with the 'pretrained' kwarg
-    ben = stim_model.load_from_file(ben_model_path)
-    model = CPNModel(in_dim, out_dim, activation_func=activation_func)
-
-    train_model(
-        dataset,
-        model,
-        mrnn,
-        ben,
+    train_args = prep_new(
+        train_data_path,
+        mrnn_model_path,
+        ben_model_path,
         observer_instance,
-        optimizer,
-        example_len,
-        in_dim,
-        out_dim,
+        lesion,
+        stimulus,
+        activation_func,
+        learning_rate=learning_rate,
         train_max_epochs=train_max_epochs,
         batch_size=batch_size,
         train_pct_stop_thresh=train_pct_stop_thresh,
         train_stop_thresh=train_stop_thresh,
         model_save_path=model_save_path,
     )
-    return model, dataset, optimizer
+
+    train_model(*train_args)
+    return train_args[1], train_args[0], train_args[5]

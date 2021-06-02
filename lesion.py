@@ -39,3 +39,19 @@ class LesionOutputs(Lesion):
     def __str__(self):
         return f"outputs{self.module_id}.{self.pct}"
 
+
+class LesionOutputsByIdxs(Lesion):
+    def __init__(self, num_neurons_per_module, start_idx, end_idx):
+        self.start_idx = start_idx
+        self.end_idx = end_idx
+        self.lesion_mask = torch.ones((num_neurons_per_module * 3,))
+        self.lesion_mask[start_idx : end_idx] = 0.0
+
+    def lesion(self, network, pre_response):
+        batch_size = pre_response.shape[0]
+        out = pre_response * torch.tile(self.lesion_mask, (batch_size, 1))
+        return out
+
+    def __str__(self):
+        return f"outputsIdxs{self.start_idx}.{self.end_idx}"
+

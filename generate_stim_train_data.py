@@ -89,7 +89,7 @@ def _generate(
     output_dim = ob.out_dim * 3
 
     for eidx in range(num_examples):
-        if not (eidx % 100):
+        if not (eidx % 1):
             print(f"{time.time()} Generating example {eidx}")
 
         mrnn.reset_hidden()
@@ -109,13 +109,13 @@ def _generate(
         for tidx in range(steps):
             # Stimulate sometimes, and not others, so we can observe both conditions.
             if random.random() <= 0.2 and stim_max_power:
-                stim = [
+                stim = np.array([
                     random.uniform(-1 * stim_max_power, stim_max_power)
                     for _ in range(num_stim_channels)
-                ]
+                ]).reshape(1, -1)
                 mrnn.stimulate(stim)
             else:
-                stim = [0.0] * num_stim_channels
+                stim = np.array([0.0] * num_stim_channels).reshape(1, -1)
 
             cur = din[tidx, :].T.squeeze()
             cur = cur.reshape(cur.shape + (1,))
@@ -123,7 +123,7 @@ def _generate(
 
             for midx, module_obs in enumerate(prev_obvs):
                 cur_inps[tidx, midx * ob.out_dim : (midx + 1) * ob.out_dim] = module_obs
-            cur_inps[tidx, 3 * ob.out_dim :] = stim
+            cur_inps[tidx, 3 * ob.out_dim :] = stim[0, :]
 
             # 3-tuple of (1, ob.out_dim)
             obs = mrnn.observe(ob)

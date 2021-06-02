@@ -49,6 +49,15 @@ class StimModel(nn.Module):
         self.x = None
         self.prev_output = None
 
+        for p in self.parameters():
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
+
+    def load_weights_from_file(self, data_path):
+        self.load_state_dict(torch.load(data_path))
+        self.eval()
+
     def forward(self, din):
         """
         Args:
@@ -109,8 +118,8 @@ class StimDataset(Dataset):
     def __getitem__(self, idx):
         return self.data[idx]
 
-def load_from_file(model_path, pretrained=False):
-    ben = StimModel(**kwargs)
+def load_from_file(model_path, in_dim, out_dim, pretrained=False, **kwargs):
+    ben = StimModel(in_dim, out_dim, **kwargs)
     ben.load_weights_from_file(model_path)
 
     if pretrained:

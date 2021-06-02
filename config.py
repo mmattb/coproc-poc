@@ -17,6 +17,7 @@ DEFAULT_LESION_PCT = 1.0
 DEFAULT_ACTIVATION_TYPE = "ReLU"
 DEFAULT_NUM_NEURONS_PER_MODULE = 100
 DEFAULT_RECOVERY_MODE = True
+DEFAULT_BATCH_SIZE = 64
 
 
 def get(
@@ -28,21 +29,29 @@ def get(
     activation_type=DEFAULT_ACTIVATION_TYPE,
     recovery_mode=DEFAULT_RECOVERY_MODE,
     num_neurons_per_module=DEFAULT_NUM_NEURONS_PER_MODULE,
+    batch_size=DEFAULT_BATCH_SIZE,
+    obs_out_dim=20,
 ):
     if observer_type == "passthrough":
         observer_instance = observer.ObserverPassthrough(num_neurons_per_module)
     elif observer_type == "gaussian":
         observer_instance = observer.ObserverGaussian1d(
-            num_neurons_per_module, out_dim=35
+            num_neurons_per_module, out_dim=20
         )
     else:
         raise ValueError(f"Unrecognized observer type: {observer_type}")
 
     if stimulation_type == "1to1":
-        stimulus = stim.Stimulus1to1(num_neurons_per_module, num_neurons_per_module)
+        stimulus = stim.Stimulus1to1(
+            num_neurons_per_module,
+            num_neurons_per_module,
+        )
     elif stimulation_type == "gaussian":
         # NOTE: can add the num_stim_channels and sigma arg above
-        stimulus = stim.StimulusGaussian(35, num_neurons_per_module)
+        stimulus = stim.StimulusGaussian(
+            35,
+            num_neurons_per_module,
+        )
     else:
         raise ValueError(f"Unrecognized stimulation type: {stimulation_type}")
 
@@ -76,4 +85,5 @@ def get(
         recovery_mode,
         recovery_str,
         run_type_str,
+        batch_size,
     )
