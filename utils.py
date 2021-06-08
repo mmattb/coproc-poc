@@ -15,7 +15,7 @@ def dfunc_dsquared(dists, decay=1):
 def array_weights(
     in_dim, out_dim, distance_func=dfunc_dsquared, normalize=False, **dfunckwargs
 ):
-    if out_dim >= in_dim:
+    if out_dim >= in_dim and out_dim > 1:
         raise ValueError(
             "Input dimension (%d) must exceed output dimension "
             "(%d)" % (in_dim, out_dim)

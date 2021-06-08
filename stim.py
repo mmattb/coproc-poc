@@ -150,3 +150,53 @@ class StimulusGaussian(Stimulus1to1):
 
     def __str__(self):
         return f"gaussian{self.num_stim_channels}.{self._sigma}"
+
+
+class StimulusGaussianExp(Stimulus):
+    def __init__(self, num_stim_channels, num_neurons, pad_right_neurons=200,
+            sigma=2.5, decay=0.3, batch_size=1):
+        super(StimulusGaussianExp, self).__init__(num_stim_channels,
+                num_neurons, pad_right_neurons, batch_size=batch_size)
+
+        self._sigma = sigma
+        self._vals = torch.zeros((batch_size, num_neurons))
+        self._decay = decay
+        self._norm = norm(0, self._sigma)
+
+    def get_neuron_weights(self):
+        win = utils.array_weights(
+            self._num_neurons, self._num_stim_channels, distance_func=self._norm.pdf
+        ).T
+        wout = np.repeat(
+            win.reshape(1, self._num_neurons, self._num_stim_channels),
+            self.batch_size,
+            axis=0,
+        )
+        return torch.tensor(wout).float()
+
+    def add(self, params):
+        """
+        params: (batch_size, num_stim_channels)
+        """
+        #P = params.clone().detach()
+        P = params
+
+        # (batch_size, num_neurons, num_stim_channels)
+        W = self.get_neuron_weights()
+
+        # (batch_size, num_neurons)
+        new_stim = W @ P.reshape(self.batch_size, self._num_stim_channels, 1)
+
+        self._vals += new_stim[:, :, 0]
+
+    def get_next(self):
+        stim_out = torch.zeros((self.batch_size, self._num_neurons + self._pad_right_neurons))
+        stim_out[:, :self._num_neurons] = self._vals
+
+        # Update vals according to an exponential decay
+        self._vals -= self._vals * self._decay
+
+        return stim_out
+
+    def __str__(self):
+        return f"gaussianExp{self.num_stim_channels}.{self._sigma}"
