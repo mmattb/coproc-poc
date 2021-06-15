@@ -34,16 +34,16 @@ class CPNModel(nn.Module):
             # Inter-neuron hidden recurrent weights
             # (num_neurons, num_neurons)
             self.W = nn.Parameter(torch.zeros((1, num_neurons, num_neurons)))
-            #nn.init.normal_(self.W[:, :, :], mean=0.0, std=(1.0 / np.sqrt(num_neurons)))
+            nn.init.normal_(self.W[:, :, :], mean=0.0, std=(1.0 / np.sqrt(num_neurons)))
 
             # Neuron response to input
             # (num_neurons, in_dim)
             self.I = nn.Parameter(torch.zeros((1, num_neurons, in_dim)))
-            #nn.init.normal_(self.I[:, :, :], mean=0.0, std=(1.0 / np.sqrt(in_dim)))
+            nn.init.normal_(self.I[:, :, :], mean=0.0, std=(1.0 / np.sqrt(in_dim)))
 
             # Neuron biases
             self.b = nn.Parameter(torch.zeros((num_neurons,)))
-            #nn.init.uniform_(self.b, -1.0, 1.0)
+            nn.init.uniform_(self.b, -1.0, 1.0)
 
             self.fc = nn.Linear(num_neurons, out_dim)
 
@@ -64,17 +64,21 @@ class CPNModel(nn.Module):
         self.steps = 0
         self.x0 = None
 
-    def reset_stim_regularizer(self, batch_size):
-        self.stim_reg = torch.zeros((batch_size,))
+    def reset_regularizer(self, batch_size):
+        #self.stim_reg = torch.zeros((batch_size,))
+        pass
 
-    def stim_regularizer(self):
-        return torch.sum(self.stim_reg) / (
-            self.steps + self.out_dim + self.stim_reg.shape[0]
-        )
+    #def stim_regularizer(self):
+    #    return torch.sum(self.stim_reg) / (
+    #        self.steps + self.out_dim + self.stim_reg.shape[0]
+    #    )
 
-    def accum_stim_regularizer(self, readout):
+    #def accum_stim_regularizer(self, readout):
+    #    self.steps += 1
+    #    self.stim_reg += torch.sum(readout, axis=1) ** 2
+
+    def accum(self):
         self.steps += 1
-        self.stim_reg += torch.sum(readout, axis=1) ** 2
 
     def forward(self, din):
         """
@@ -86,8 +90,9 @@ class CPNModel(nn.Module):
         if self.x is None:
             self.x0 = torch.zeros((batch_size, self.num_neurons))
             self.x = self.x0
-            self.prev_output = torch.zeros((batch_size, self.num_neurons))
-            self.reset_stim_regularizer(batch_size)
+            self.prev_output = self.activation_func(
+                    torch.zeros((batch_size, self.num_neurons)))
+            self.reset_regularizer(batch_size)
 
         x = self.W @ self.prev_output.reshape(self.x.shape + (1,))
         assert x.shape == (batch_size, self.num_neurons, 1)
@@ -96,10 +101,22 @@ class CPNModel(nn.Module):
         x = x.squeeze() + self.b
         self.x = x
 
+        # NOTE: left here to explore silencing output for the first N time
+        # steps. This threshold should probably be a learnable parameter,
+        # e.g. by applying a sigmoid after the activation func output, where
+        # the sigmoid is modulated by the time step index.
+        #
+        # @preston: this logic is unnecessary in the current formulation of
+        #  the learning toy problem, since the 'label' / phase indicator is now
+        #  passed in explicitly.
+        #if self.steps > 10:
         rnn_output = self.activation_func(x)
         readout = self.fc(rnn_output)
+        #else:
+        #    rnn_output = torch.zeros(batch_size, self.num_neurons)
+        #    readout = torch.zeros(batch_size, self.out_dim)
 
-        # self.accum_stim_regularizer(readout)
+        self.accum()
         self.prev_output = rnn_output
 
         return readout
@@ -214,7 +231,6 @@ def train_model(
                 min_loss = loss.item()
 
             loss.backward()
-            import pdb; pdb.set_trace()
             optimizer.step()
 
         if train_stop_thresh is not None and train_stop_thresh >= min_loss:
