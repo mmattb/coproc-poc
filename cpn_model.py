@@ -27,6 +27,7 @@ class CPNModel(nn.Module):
 
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.activation_func_t = activation_func
         self.activation_func = activation_func()
         self.num_neurons = num_neurons
 
@@ -53,32 +54,10 @@ class CPNModel(nn.Module):
         self.prev_output = None
         self.x0 = None
 
-        # Stim regularizer
-        self.stim_reg = 0.0
-        self.steps = 0
-
     def reset(self):
         self.x = None
         self.prev_output = None
-        self.stim_reg = None
-        self.steps = 0
         self.x0 = None
-
-    def reset_regularizer(self, batch_size):
-        #self.stim_reg = torch.zeros((batch_size,))
-        pass
-
-    #def stim_regularizer(self):
-    #    return torch.sum(self.stim_reg) / (
-    #        self.steps + self.out_dim + self.stim_reg.shape[0]
-    #    )
-
-    #def accum_stim_regularizer(self, readout):
-    #    self.steps += 1
-    #    self.stim_reg += torch.sum(readout, axis=1) ** 2
-
-    def accum(self):
-        self.steps += 1
 
     def forward(self, din):
         """
@@ -92,7 +71,6 @@ class CPNModel(nn.Module):
             self.x = self.x0
             self.prev_output = self.activation_func(
                     torch.zeros((batch_size, self.num_neurons)))
-            self.reset_regularizer(batch_size)
 
         x = self.W @ self.prev_output.reshape(self.x.shape + (1,))
         assert x.shape == (batch_size, self.num_neurons, 1)
@@ -101,25 +79,117 @@ class CPNModel(nn.Module):
         x = x.squeeze() + self.b
         self.x = x
 
-        # NOTE: left here to explore silencing output for the first N time
-        # steps. This threshold should probably be a learnable parameter,
-        # e.g. by applying a sigmoid after the activation func output, where
-        # the sigmoid is modulated by the time step index.
-        #
-        # @preston: this logic is unnecessary in the current formulation of
-        #  the learning toy problem, since the 'label' / phase indicator is now
-        #  passed in explicitly.
-        #if self.steps > 10:
         rnn_output = self.activation_func(x)
         readout = self.fc(rnn_output)
-        #else:
-        #    rnn_output = torch.zeros(batch_size, self.num_neurons)
-        #    readout = torch.zeros(batch_size, self.out_dim)
 
-        self.accum()
         self.prev_output = rnn_output
 
         return readout
+
+class CPNNoiseyCollection(nn.Module):
+    """
+    This acts like a CPN, but in-fact varies its parameters for each sample in
+    the batch. For N% of the batch it acts exactly like the provided CPN. For
+    the rest, it acts the same, but with some amount of mean 0 noise added to
+    every param.
+    """
+    def __init__(self, cpn, noisey_pct=0.90, noise_var=0.3):
+        super(CPNNoiseyCollection, self).__init__()
+
+        self.in_dim = cpn.in_dim
+        self.out_dim = cpn.out_dim
+        self.activation_func_t = cpn.activation_func_t
+        self.activation_func = cpn.activation_func_t()
+        self.num_neurons = cpn.num_neurons
+        self.cpn = cpn
+        self.noisey_pct = noisey_pct
+        self.noise_var = noise_var
+
+        # (batch, num_neurons)
+        self.x = None
+        # (batch, num_neurons)
+        self.prev_output = None
+        self.x0 = None
+
+    def reset(self):
+        self.x = None
+        self.prev_output = None
+        self.x0 = None
+
+    def setup(self, batch_size):
+        with torch.no_grad():
+            noisey_cnt = int(batch_size * self.noisey_pct)
+            cpn = self.cpn
+
+            # Inter-neuron hidden recurrent weights
+            # (batch_size, num_neurons, num_neurons)
+            self.W = nn.Parameter(torch.empty((batch_size, self.num_neurons,
+                    self.num_neurons)))
+            self.W[:, :, :] = cpn.W[:, :, :].repeat(batch_size, 1, 1)
+            self.W[:noisey_cnt, :, :] += self.noise_var * (
+                    torch.rand(noisey_cnt, self.num_neurons,
+                    self.num_neurons) - 0.5)
+
+            # Neuron response to input
+            # (batch_size, num_neurons, in_dim)
+            self.I = nn.Parameter(torch.empty((batch_size, self.num_neurons,
+                    self.in_dim)))
+            self.I[:, :, :] = cpn.I[:, :, :].repeat(batch_size, 1, 1)
+            self.I[:noisey_cnt, :, :] += self.noise_var * (
+                    torch.rand(noisey_cnt, self.num_neurons,
+                    self.in_dim) - 0.5)
+
+            # Neuron biases
+            self.b = nn.Parameter(torch.empty((batch_size, self.num_neurons)))
+            self.b[:, :] = cpn.b[:].reshape(1, self.num_neurons).repeat(batch_size, 1)
+            self.b[:noisey_cnt, :] += self.noise_var * (
+                    torch.rand(noisey_cnt, self.num_neurons) - 0.5)
+
+            # This one is harder... Need to re-implement fc...
+            self.fc_w = nn.Parameter(torch.empty(batch_size,
+                    self.out_dim, self.num_neurons))
+            self.fc_w[:, :, :] = cpn.fc.weight[:, :].reshape(1, self.out_dim,
+                    self.num_neurons).repeat(batch_size, 1, 1)
+            self.fc_w[:noisey_cnt, :, :] += self.noise_var * (
+                    torch.rand(noisey_cnt, self.out_dim, self.num_neurons) - 0.5)
+
+            self.fc_b = nn.Parameter(torch.empty(batch_size, self.out_dim))
+            self.fc_b[:, :] = cpn.fc.bias[:].reshape(1, self.out_dim).repeat(
+                    batch_size, 1)
+            self.fc_b[:noisey_cnt, :] += self.noise_var * (
+                    torch.rand(noisey_cnt, self.out_dim) - 0.5)
+
+    def forward(self, din):
+        """
+        Args:
+            din - (batch, in_dim)
+        """
+        batch_size = din.shape[0]
+
+        if self.x is None:
+            self.x0 = torch.zeros((batch_size, self.num_neurons))
+            self.x = self.x0
+            self.prev_output = self.activation_func(
+                    torch.zeros((batch_size, self.num_neurons)))
+            self.setup(batch_size)
+
+        x = self.W @ self.prev_output.reshape(self.x.shape + (1,))
+        assert x.shape == (batch_size, self.num_neurons, 1)
+
+        x = x + self.I @ din.reshape(din.shape + (1,))
+        x = x.squeeze() + self.b
+        self.x = x
+
+        rnn_output = self.activation_func(x)
+        assert rnn_output.shape == (batch_size, self.num_neurons)
+
+        weighted = self.fc_w @ rnn_output.reshape(rnn_output.shape + (1,))
+        readout = weighted.squeeze(dim=2) + self.fc_b
+
+        self.prev_output = rnn_output
+
+        return readout
+
 
 
 class CPNTrainDataset(Dataset):
