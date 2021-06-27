@@ -28,7 +28,12 @@ class CPNModel(nn.Module):
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.activation_func_t = activation_func
-        self.activation_func = activation_func()
+
+        if activation_func is nn.PReLU:
+            self.activation_func = activation_func(num_neurons)
+        else:
+            self.activation_func = activation_func()
+
         self.num_neurons = num_neurons
 
         with torch.no_grad():
@@ -99,7 +104,12 @@ class CPNNoiseyCollection(nn.Module):
         self.in_dim = cpn.in_dim
         self.out_dim = cpn.out_dim
         self.activation_func_t = cpn.activation_func_t
-        self.activation_func = cpn.activation_func_t()
+
+        if cpn.activation_func_t is nn.PReLU:
+            self.activation_func = cpn.activation_func_t(cpn.num_neurons)
+        else:
+            self.activation_func = cpn.activation_func_t()
+
         self.num_neurons = cpn.num_neurons
         self.cpn = cpn
         self.noisey_pct = noisey_pct
@@ -115,6 +125,11 @@ class CPNNoiseyCollection(nn.Module):
         self.x = None
         self.prev_output = None
         self.x0 = None
+
+        for p in self.parameters():
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
 
     def setup(self, batch_size):
         with torch.no_grad():
@@ -191,6 +206,8 @@ class CPNNoiseyCollection(nn.Module):
         return readout
 
 
+#class CPNModelLSTM(utils.LSTMModel):
+#    pass
 
 class CPNTrainDataset(Dataset):
     def __init__(self, data_file_path):

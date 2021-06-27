@@ -124,3 +124,41 @@ class NonAct(nn.Module):
 
     def forward(self, x):
         return x
+
+
+class LSTMModel(nn.Module):
+    def __init__(self, in_dim, out_dim, num_neurons=None,
+            activation_func=ReTanh):
+        super(LSTMModel, self).__init__()
+
+        if num_neurons is None:
+            num_neurons = max(input_dim, out_dim) + 10
+
+        self.in_dim = in_dim
+        self.num_neurons = num_neurons
+        self.lstm = nn.LSTM(in_dim, num_neurons, batch_first=True)
+        self.fc(num_neurons, out_dim)
+        self.activation_func_t = activation_func
+        self.activation_func = activation_func()
+
+        self.lstm_hidden = None
+
+    def reset(self):
+        self.lstm_hidden = None
+
+    def forward(self, din):
+        """
+        din is (batch_size, input_dim)
+        """
+
+        if self.lstm_hidden is None:
+            lstm_out, lstm_hidden = self.lstm(din.reshape(din.shape[0], 1,
+                    din.shape[1]))
+        else:
+            lstm_out, lstm_hidden = self.lstm(din.reshape(din.shape[0], 1,
+                    din.shape[1]), self.lstm_hidden)
+
+        self.lstm_hidden = lstm_hidden
+        activation = self.activation_func(lstm_out)
+        readout = self.fc(activation)
+        return readout
