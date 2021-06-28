@@ -51,14 +51,17 @@ class StimModel(nn.Module):
         self.prev_output = None
         self.x0 = None
 
+        # Used purely for dropping gradients on the ground.
+        #  We do this to reset between learning epochs where
+        #  the optimizer/thing we are learning isn't this
+        #  network, but we are using this network.
+        self._opt = torch.optim.SGD(self.parameters(), lr=1e-3)
+
     def reset(self):
         self.x = None
         self.prev_output = None
 
-        for p in self.parameters():
-            if p.grad is not None:
-                p.grad.detach_()
-                p.grad.zero_()
+        self._opt.zero_grad()
 
     def load_weights_from_file(self, data_path):
         self.load_state_dict(torch.load(data_path))
@@ -92,8 +95,8 @@ class StimModel(nn.Module):
         return readout
 
 
-#class StimModelLSTM(utils.LSTMModel):
-#    pass
+class StimModelLSTM(utils.LSTMModel):
+    pass
 
 
 class StimDataset(Dataset):

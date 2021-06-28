@@ -51,7 +51,7 @@ def alpha(gmax, t, tau=5, onset=0, time_scalar=1):
     gmax: (batch_size, num_stim_channels)
     out: (batch_size, num_stim_channels)
     """
-    v = (gmax * time_scalar * (t - onset) / tau)
+    v = gmax * time_scalar * (t - onset) / tau
     v *= np.exp(-1 * time_scalar * (t - onset - tau) / tau)
     return v
 
@@ -126,9 +126,8 @@ class NonAct(nn.Module):
         return x
 
 
-class LSTMModel(nn.Module):
-    def __init__(self, in_dim, out_dim, num_neurons=None,
-            activation_func=ReTanh):
+class LSTMModelSimple(nn.Module):
+    def __init__(self, in_dim, out_dim, num_neurons=None, activation_func=ReTanh):
         super(LSTMModel, self).__init__()
 
         if num_neurons is None:
@@ -152,13 +151,91 @@ class LSTMModel(nn.Module):
         """
 
         if self.lstm_hidden is None:
-            lstm_out, lstm_hidden = self.lstm(din.reshape(din.shape[0], 1,
-                    din.shape[1]))
+            lstm_out, lstm_hidden = self.lstm(
+                din.reshape(din.shape[0], 1, din.shape[1])
+            )
         else:
-            lstm_out, lstm_hidden = self.lstm(din.reshape(din.shape[0], 1,
-                    din.shape[1]), self.lstm_hidden)
+            lstm_out, lstm_hidden = self.lstm(
+                din.reshape(din.shape[0], 1, din.shape[1]), self.lstm_hidden
+            )
 
         self.lstm_hidden = lstm_hidden
         activation = self.activation_func(lstm_out)
         readout = self.fc(activation)
         return readout
+
+
+# Adapted from:
+#  https://towardsdatascience.com/building-a-lstm-by-hand-on-pytorch-59c02a4ec091
+#  Access 07/27/21
+#  *tip of the hat*
+# I've unrolled it to keep the interface simple.
+class LSTMModel(nn.Module):
+    def __init__(
+        self, in_dim, out_dim, num_neurons=None, activation_func=torch.nn.Tanh
+    ):
+        super().__init__()
+
+        if num_neurons is None:
+            num_neurons = out_dim
+
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.num_neurons = num_neurons
+        self.W = nn.Parameter(torch.Tensor(in_dim, num_neurons * 4))
+        self.U = nn.Parameter(torch.Tensor(num_neurons, num_neurons * 4))
+        self.bias = nn.Parameter(torch.Tensor(num_neurons * 4))
+        self.init_weights()
+
+        self.activation_func_t = activation_func
+        self.activation_func = activation_func()
+
+        self.fc = nn.Linear(num_neurons, out_dim)
+
+        self.ht = None
+        self.ct = None
+
+        # Used purely for dropping gradients on the ground.
+        #  We do this to reset between learning epochs where
+        #  the optimizer/thing we are learning isn't this
+        #  network, but we are using this network.
+        self._opt = torch.optim.SGD(self.parameters(), lr=1e-3)
+
+    def init_weights(self):
+        stdv = 1.0 / math.sqrt(self.num_neurons)
+        for weight in self.parameters():
+            weight.data.uniform_(-stdv, stdv)
+
+    def reset(self):
+        self.ht = None
+        self.ct = None
+        self._opt.zero_grad()
+
+    def forward(self, x_t):
+        """Old: Assumes x is of shape (batch, sequence, feature)"""
+        """New: Assumes x_t is of shape (batch, feature)"""
+
+        batch_size, in_dim = x_t.shape
+        assert in_dim == self.in_dim
+
+        if self.ht is None:
+            self.ht = torch.zeros(batch_size, self.num_neurons)
+            self.ct = torch.zeros(batch_size, self.num_neurons)
+
+        HS = self.num_neurons
+        # batch the computations into a single matrix multiplication
+        gates = x_t @ self.W + self.ht @ self.U + self.bias
+        i_t, f_t, g_t, o_t = (
+            torch.sigmoid(gates[:, :HS]),  # input
+            torch.sigmoid(gates[:, HS : HS * 2]),  # forget
+            torch.tanh(gates[:, HS * 2 : HS * 3]),
+            torch.sigmoid(gates[:, HS * 3 :]),  # output
+        )
+
+        self.ct = f_t * self.ct + i_t * g_t
+        self.ht = o_t * torch.tanh(self.ct)
+
+        activation = self.activation_func(self.ht)
+        out = self.fc(activation)
+
+        return out
