@@ -23,6 +23,10 @@ class Stimulus(object):
     def batch_size(self):
         return self._batch_size
 
+    @property
+    def num_neurons(self):
+        return self._num_neurons
+
     def add(self, params):
         raise NotImplementedError()
 
@@ -174,12 +178,15 @@ class StimulusGaussianExp(Stimulus):
         )
         return torch.tensor(wout).float()
 
+    def reset(self, batch_size=None):
+        super(StimulusGaussianExp, self).reset(batch_size=batch_size)
+        self._vals = torch.zeros((self.batch_size, self.num_neurons))
+
     def add(self, params):
         """
         params: (batch_size, num_stim_channels)
         """
-        #P = params.clone().detach()
-        P = params
+        P = params.clone().detach()
 
         # (batch_size, num_neurons, num_stim_channels)
         W = self.get_neuron_weights()

@@ -245,8 +245,6 @@ class MichaelsRNN(nn.Module):
             self.stimulus.reset(batch_size=batch_size)
 
     def reset_hidden(self):
-        self.reset_stim()
-
         self.prev_output = None
 
         # Internal state of the neurons. Referred to as x_i in the text
@@ -255,6 +253,10 @@ class MichaelsRNN(nn.Module):
         # Accumulated firing rates, for regularizer
         self.sum_fr = 0.0
         self.denom_fr = 0.0
+
+    def reset(self):
+        # 'tis an alias
+        self.reset_hidden()
 
     def set_sparse_grads(self):
         self.J.grad *= self.J_zero_grad_mask
@@ -333,10 +335,13 @@ class MichaelsRNN(nn.Module):
         ret = self.fc(output[:, :self.num_neurons_per_module])
         return ret
 
-    def observe(self, obs_model):
+    def observe(self, obs_model, drop_module_idx=None):
         outputs = []
 
         for midx in range(self.num_modules):
+            if drop_module_idx is not None and midx == drop_module_idx:
+                continue
+
             act = self.prev_output[
                 :,
                 midx
@@ -344,10 +349,12 @@ class MichaelsRNN(nn.Module):
                 * self.num_neurons_per_module,
             ]
             out = obs_model(act)
+            # aka (batch_size, out_dim)
             assert out.shape == (self.prev_output.shape[0], obs_model.out_dim)
             outputs.append(out)
 
         # 3-tuple, elements are (batch, obs.out_dim)
+        # Possibly fewer than 3, if we are dropping modules
         return outputs
 
     def unroll(self, data_in):
@@ -400,7 +407,6 @@ class MichaelsDataset(Dataset):
         outs = f["targ"]
 
         self.num_samples = inps.shape[0]
-        #self.sample_len = min([s.shape[1] for s in inps])
         self.sample_len = max([s.shape[1] for s in inps])
 
         self.data = []
@@ -413,17 +419,20 @@ class MichaelsDataset(Dataset):
         cur_in = inps[idx]
         cur_out = outs[idx]
 
-        din = torch.empty((self.sample_len, cur_in.shape[0]), dtype=torch.float)
-        din[:self.sample_len, :] = torch.tensor(cur_in.T[:self.sample_len, :])
-        #din[: cur_in.shape[1], :] = torch.tensor(cur_in.T[:, :])
-        #din[cur_in.shape[1] :, :] = torch.tensor(cur_in.T[-1, :])
+        din = torch.zeros((self.sample_len, cur_in.shape[0]), dtype=torch.float)
+        din[:cur_in.shape[1], :] = torch.tensor(cur_in.T[:, :])
+        din[cur_in.shape[1]:, :] = 0.0
 
-        dout = torch.empty((self.sample_len, cur_out.shape[0]), dtype=torch.float)
-        dout[:self.sample_len, :] = torch.tensor(cur_out.T[:self.sample_len, :])
-        #dout[: cur_out.shape[1], :] = torch.tensor(cur_out.T[:, :])
-        #dout[cur_out.shape[1] :, :] = torch.tensor(cur_out.T[-1, :])
+        trial_end = torch.ones((self.sample_len, 1),
+                dtype=torch.float)
+        trial_end[:cur_in.shape[1], 0] = 0.0
 
-        return din, dout
+        trial_len = torch.tensor(cur_in.shape[1])
+
+        dout = torch.zeros((self.sample_len, cur_out.shape[0]), dtype=torch.float)
+        dout[:cur_out.shape[1], :] = torch.tensor(cur_out.T[:, :])
+
+        return din, trial_end, trial_len, dout
 
     def _load_data(self, inps, outs):
         for i in range(self.num_samples):
@@ -467,7 +476,7 @@ def generate(
                 mrnn.reset_hidden()
                 optimizer.zero_grad()
 
-                din, dout = sampled_batch
+                din, _, _, dout = sampled_batch
                 batch_size = din.shape[0]
                 example_len = din.shape[1]
 
