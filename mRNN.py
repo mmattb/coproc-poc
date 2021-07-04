@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 
@@ -86,14 +87,7 @@ class MichaelsRNN(nn.Module):
         self.x = None
 
         if init_data_path is not None:
-            (
-                J,
-                I,
-                S,
-                B,
-                fc,
-                x0,
-            ) = utils.init_from_michaels_model(
+            (J, I, S, B, fc, x0,) = utils.init_from_michaels_model(
                 init_data_path, num_input_features, num_neurons_per_module, output_dim
             )
 
@@ -328,18 +322,18 @@ class MichaelsRNN(nn.Module):
         self.prev_output = output
 
         # Used for firing rate (output) regularization
-        self.sum_fr += torch.sum(torch.square(output))
-        self.denom_fr += self.num_neurons + batch_size
+        #self.sum_fr += torch.sum(torch.square(output))
+        #self.denom_fr += self.num_neurons + batch_size
 
         # Return only from the final module
-        ret = self.fc(output[:, :self.num_neurons_per_module])
+        ret = self.fc(output[:, : self.num_neurons_per_module])
         return ret
 
     def observe(self, obs_model, drop_module_idx=None):
         outputs = []
 
         for midx in range(self.num_modules):
-            if drop_module_idx is not None and midx == drop_module_idx:
+            if midx == drop_module_idx:
                 continue
 
             act = self.prev_output[
@@ -401,42 +395,59 @@ class MichaelsRNN(nn.Module):
 
 
 class MichaelsDataset(Dataset):
-    def __init__(self, data_file_path):
+    def __init__(self, data_file_path, with_label=False):
         f = michaels_load.load_from_path(data_file_path)
         inps = f["inp"]
         outs = f["targ"]
 
+        if with_label:
+            ti = f["trialInfo"]
+        else:
+            ti = None
+
         self.num_samples = inps.shape[0]
         self.sample_len = max([s.shape[1] for s in inps])
 
+        self.with_label = with_label
+
         self.data = []
-        self._load_data(inps, outs)
+        self._load_data(inps, outs, trial_info=ti)
 
     def __len__(self):
         return self.num_samples
 
-    def _load_data_single(self, idx, inps, outs):
+    def _load_data_single(self, idx, inps, outs, trial_info=None):
         cur_in = inps[idx]
         cur_out = outs[idx]
 
         din = torch.zeros((self.sample_len, cur_in.shape[0]), dtype=torch.float)
-        din[:cur_in.shape[1], :] = torch.tensor(cur_in.T[:, :])
-        din[cur_in.shape[1]:, :] = 0.0
+        din[: cur_in.shape[1], :] = torch.tensor(cur_in.T[:, :])
+        din[cur_in.shape[1] :, :] = 0.0
 
-        trial_end = torch.ones((self.sample_len, 1),
-                dtype=torch.float)
-        trial_end[:cur_in.shape[1], 0] = 0.0
+        trial_end = torch.zeros((self.sample_len, 1), dtype=torch.float)
+        trial_end[: cur_in.shape[1], 0] = 1.0
 
         trial_len = torch.tensor(cur_in.shape[1])
 
         dout = torch.zeros((self.sample_len, cur_out.shape[0]), dtype=torch.float)
-        dout[:cur_out.shape[1], :] = torch.tensor(cur_out.T[:, :])
+        dout[: cur_out.shape[1], :] = torch.tensor(cur_out.T[:, :])
 
-        return din, trial_end, trial_len, dout
+        if trial_info is None:
+            return din, trial_end, trial_len, dout
+        else:
+            raw = trial_info[idx][0]
+            norm = (raw // 10) - 2
+            #oh = F.one_hot(torch.tensor(norm), num_classes=8)
+            if norm == 7:
+                norm = 6
+            label = torch.tensor(norm)
+            return din, trial_end, trial_len, dout, label
 
-    def _load_data(self, inps, outs):
+    def _load_data(self, inps, outs, trial_info=None):
         for i in range(self.num_samples):
-            self.data.append(self._load_data_single(i, inps, outs))
+            self.data.append(
+                self._load_data_single(i, inps, outs, trial_info=trial_info)
+            )
 
     def __getitem__(self, idx):
         return self.data[idx]
@@ -511,6 +522,7 @@ def generate(
 
     torch.save(mrnn.state_dict(), model_path)
     return mrnn
+
 
 def load_from_file(data_path, pretrained=False, **kwargs):
     mrnn = MichaelsRNN(**kwargs)

@@ -216,7 +216,7 @@ class LSTMModel(nn.Module):
         """New: Assumes x_t is of shape (batch, feature)"""
 
         batch_size, in_dim = x_t.shape
-        assert in_dim == self.in_dim
+        assert in_dim == self.in_dim, str((in_dim, self.in_dim))
 
         if self.ht is None:
             self.ht = torch.zeros(batch_size, self.num_neurons)
