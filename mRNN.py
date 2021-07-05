@@ -279,8 +279,10 @@ class MichaelsRNN(nn.Module):
         if self.prev_output is None:
             # (batch_size, num_neurons)
             self.x = torch.tile(self.x0, (batch_size, 1))
-            if self.lesion is not None:
+
+            if self.lesion is not None and self.lesion.application == "output":
                 self.x = self.lesion.lesion(self, self.x)
+
             self.prev_output = self.activation_func(self.x)
             self.reset_stim(batch_size=batch_size)
         elif batch_size != self.prev_output.shape[0]:
@@ -297,8 +299,11 @@ class MichaelsRNN(nn.Module):
         # Cleared for take-off...
         # Recurrence
 
-        recur = self.prev_output @ self.J.T
-        assert recur.shape == (batch_size, self.num_neurons)
+        if self.lesion is not None and self.lesion.application == "connection":
+            recur = self.prev_output @ self.lesion.lesion(self, self.J).T
+        else:
+            recur = self.prev_output @ self.J.T
+        assert recur.shape == (batch_size, self.num_neurons), str(recur.shape)
 
         # Input
         inp = image.T @ self.I.T + hold.T * self.S.T
@@ -312,7 +317,7 @@ class MichaelsRNN(nn.Module):
         pre_response = self.x + tdx / 10
         assert pre_response.shape == (batch_size, self.num_neurons)
 
-        if self.lesion is not None:
+        if self.lesion is not None and self.lesion.application == "output":
             pre_response = self.lesion.lesion(self, pre_response)
 
         output = self.activation_func(pre_response)

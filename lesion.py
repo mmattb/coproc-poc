@@ -14,6 +14,8 @@ def module_id_to_idxs(num_neurons_per_module, module_id):
 
 
 class Lesion(object):
+    application = "output"
+
     def lesion(self, network, pre_response):
         raise NotImplementedError()
 
@@ -55,3 +57,34 @@ class LesionOutputsByIdxs(Lesion):
     def __str__(self):
         return f"outputsIdxs{self.start_idx}.{self.end_idx}"
 
+class LesionConnectionsByIdxs(Lesion):
+    application = "connection"
+
+    def __init__(self, num_neurons_per_module, idxs, idxs_are_modules=True):
+        # idxs: an iterable of (start_idx_in, end_idx_in, start_idx_out, end_idx_out),
+        #  where those indices indicate modules if idxs_are_modules,
+        # otherwise indicating neuron ranges
+        self.idxs = idxs
+        self.idxs_are_modules = idxs_are_modules
+
+        num_neurons = num_neurons_per_module * 3
+        self.lesion_mask = torch.ones((num_neurons, num_neurons))
+
+        for i in idxs:
+            start_in, end_in, start_out, end_out = i
+
+            if idxs_are_modules:
+                si = start_in * num_neurons_per_module
+                ei = end_in * num_neurons_per_module
+                so = start_out * num_neurons_per_module
+                eo = end_out * num_neurons_per_module
+                self.lesion_mask[so:eo, si:ei] = 0.0
+            else:
+                self.lesion_mask[start_out:end_out, start_in:end_in] = 0.0
+
+    def lesion(self, network, x):
+        out = self.lesion_mask * x
+        return out
+
+    def __str__(self):
+        return f"connectionsIdxs{self.idxs}"

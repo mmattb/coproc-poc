@@ -36,8 +36,7 @@ def get(
     observer_type=DEFAULT_OBSERVER_TYPE,
     stimulation_type=DEFAULT_STIMULATION_TYPE,
     lesion_type=DEFAULT_LESION_TYPE,
-    lesion_module_id=DEFAULT_LESION_MODULE_ID,
-    lesion_pct=DEFAULT_LESION_PCT,
+    lesion_args=(DEFAULT_LESION_MODULE_ID, DEFAULT_LESION_PCT),
     en_activation_type=DEFAULT_ACTIVATION_TYPE,
     cpn_activation_type=DEFAULT_ACTIVATION_TYPE,
     recovery_mode=DEFAULT_RECOVERY_MODE,
@@ -77,8 +76,13 @@ def get(
 
     if lesion_type == "outputs":
         lesion_instance = lesion.LesionOutputs(
-            num_neurons_per_module, lesion_module_id, lesion_pct
+            num_neurons_per_module, *lesion_args,
         )
+    elif lesion_type == "connection":
+        lesion_instance = lesion.LesionConnectionsByIdxs(
+            num_neurons_per_module, *lesion_args,
+        )
+
     elif lesion_type == "none":
         lesion_instance = None
     else:
@@ -93,15 +97,6 @@ def get(
         [str(observer_instance), str(lesion_instance), str(stimulus)]
     )
 
-    if lesion_module_id == "AIP":
-        drop_module_idx = 0
-    elif lesion_module_id == "F5":
-        drop_module_idx = 1
-    elif lesion_module_id == "M1":
-        drop_module_idx = 2
-    else:
-        raise ValueError(f"unrecognized lesion module: {drop_module_idx}")
-
     return (
         observer_instance,
         stimulus,
@@ -112,5 +107,4 @@ def get(
         recovery_str,
         run_type_str,
         batch_size,
-        drop_module_idx,
     )
