@@ -38,12 +38,12 @@ class ObserverGaussian1d(Observer):
         self._out_dim = out_dim
         self.sigma = sigma
 
-        self.norm, self.weights = gaussian_array_weights(in_dim, out_dim, sigma)
+        self.norm, self.weights = gaussian_array_weights(in_dim, out_dim, sigma, normalize=True)
+        self.weights = self.weights.reshape((1,) + self.weights.shape)
 
     def reduce(self, x):
         # Note: weights may broadcast up if we have batches
-        reduced = self.weights.reshape((1,) + self.weights.shape) @ \
-                x.reshape(x.shape + (1,))
+        reduced =  self.weights @ x.reshape(x.shape + (1,))
         return reduced.squeeze(axis=-1)
 
     def __str__(self):

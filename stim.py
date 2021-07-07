@@ -8,8 +8,9 @@ import utils
 
 
 class Stimulus(object):
-    def __init__(self, num_stim_channels, num_neurons, pad_right_neurons=200,
-                 batch_size=1):
+    def __init__(
+        self, num_stim_channels, num_neurons, pad_right_neurons=200, batch_size=1
+    ):
         self._num_stim_channels = num_stim_channels
         self._num_neurons = num_neurons
         self._pad_right_neurons = pad_right_neurons
@@ -42,11 +43,17 @@ class Stimulus(object):
 
 class Stimulus1to1(Stimulus):
     def __init__(
-        self, num_stim_channels, num_neurons, pad_right_neurons=200, kill_thresh=1e-2,
-        batch_size=1
+        self,
+        num_stim_channels,
+        num_neurons,
+        pad_right_neurons=200,
+        kill_thresh=1e-2,
+        batch_size=1,
     ):
         super(Stimulus1to1, self).__init__(
-            num_stim_channels, num_neurons, pad_right_neurons,
+            num_stim_channels,
+            num_neurons,
+            pad_right_neurons,
             batch_size=batch_size,
         )
 
@@ -79,13 +86,15 @@ class Stimulus1to1(Stimulus):
             )
 
         # out: (batch_size, num_neurons, num_neurons)
-        return torch.tensor(np.repeat(
-            np.identity(self._num_neurons).reshape(
-                1, self._num_neurons, self._num_neurons
-            ),
-            self.batch_size,
-            axis=0,
-        ))
+        return torch.tensor(
+            np.repeat(
+                np.identity(self._num_neurons).reshape(
+                    1, self._num_neurons, self._num_neurons
+                ),
+                self.batch_size,
+                axis=0,
+            )
+        )
 
     def get_next(self):
         stim_out = torch.zeros(
@@ -143,7 +152,8 @@ class StimulusGaussian(Stimulus1to1):
 
     def get_neuron_weights(self):
         win = utils.array_weights(
-            self._num_neurons, self._num_stim_channels, distance_func=self._norm.pdf
+            self._num_neurons, self._num_stim_channels, distance_func=self._norm.pdf,
+            normalize=True
         )
         wout = np.repeat(
             win.reshape(1, self._num_stim_channels, self._num_neurons),
@@ -157,30 +167,46 @@ class StimulusGaussian(Stimulus1to1):
 
 
 class StimulusGaussianExp(Stimulus):
-    def __init__(self, num_stim_channels, num_neurons, pad_right_neurons=200,
-            sigma=2.5, decay=0.3, batch_size=1):
-        super(StimulusGaussianExp, self).__init__(num_stim_channels,
-                num_neurons, pad_right_neurons, batch_size=batch_size)
+    def __init__(
+        self,
+        num_stim_channels,
+        num_neurons,
+        pad_right_neurons=200,
+        sigma=2.5,
+        decay=0.3,
+        batch_size=1,
+    ):
+        super(StimulusGaussianExp, self).__init__(
+            num_stim_channels, num_neurons, pad_right_neurons, batch_size=batch_size
+        )
 
         self._sigma = sigma
         self._vals = torch.zeros((batch_size, num_neurons))
         self._decay = decay
         self._norm = norm(0, self._sigma)
 
-    def get_neuron_weights(self):
-        win = utils.array_weights(
-            self._num_neurons, self._num_stim_channels, distance_func=self._norm.pdf
-        ).T
-        wout = np.repeat(
-            win.reshape(1, self._num_neurons, self._num_stim_channels),
-            self.batch_size,
-            axis=0,
+        self.W = None
+        self._calc_neuron_weights()
+
+    def _calc_neuron_weights(self):
+        win = (
+            torch.tensor(
+                utils.array_weights(
+                    self._num_neurons,
+                    self._num_stim_channels,
+                    distance_func=self._norm.pdf,
+                    normalize=True,
+                )
+            )
+            .float()
+            .T
         )
-        return torch.tensor(wout).float()
+        self.W = win.unsqueeze(axis=0).repeat(self.batch_size, 1, 1)
 
     def reset(self, batch_size=None):
         super(StimulusGaussianExp, self).reset(batch_size=batch_size)
         self._vals = torch.zeros((self.batch_size, self.num_neurons))
+        self._calc_neuron_weights()
 
     def add(self, params):
         """
@@ -189,7 +215,7 @@ class StimulusGaussianExp(Stimulus):
         P = params.clone().detach()
 
         # (batch_size, num_neurons, num_stim_channels)
-        W = self.get_neuron_weights()
+        W = self.W
 
         # (batch_size, num_neurons)
         new_stim = W @ P.reshape(self.batch_size, self._num_stim_channels, 1)
@@ -197,8 +223,10 @@ class StimulusGaussianExp(Stimulus):
         self._vals += new_stim[:, :, 0]
 
     def get_next(self):
-        stim_out = torch.zeros((self.batch_size, self._num_neurons + self._pad_right_neurons))
-        stim_out[:, :self._num_neurons] = self._vals
+        stim_out = torch.zeros(
+            (self.batch_size, self._num_neurons + self._pad_right_neurons)
+        )
+        stim_out[:, : self._num_neurons] = self._vals
 
         # Update vals according to an exponential decay
         self._vals -= self._vals * self._decay

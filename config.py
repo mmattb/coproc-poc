@@ -43,6 +43,7 @@ def get(
     num_neurons_per_module=DEFAULT_NUM_NEURONS_PER_MODULE,
     batch_size=DEFAULT_BATCH_SIZE,
     num_stim_channels=35,
+    stim_sigma=1,
     obs_out_dim=20,
 ):
     if observer_type == "passthrough":
@@ -64,12 +65,14 @@ def get(
         stimulus = stim.StimulusGaussian(
             num_stim_channels,
             num_neurons_per_module,
+            sigma=stim_sigma,
         )
     elif stimulation_type == "gaussianExp":
         stimulus = stim.StimulusGaussianExp(
             num_stim_channels,
             num_neurons_per_module,
-            batch_size=batch_size
+            batch_size=batch_size,
+            sigma=stim_sigma,
         )
     else:
         raise ValueError(f"Unrecognized stimulation type: {stimulation_type}")
