@@ -400,7 +400,7 @@ class MichaelsRNN(nn.Module):
 
 
 class MichaelsDataset(Dataset):
-    def __init__(self, data_file_path, with_label=False):
+    def __init__(self, data_file_path, with_label=False, limit=None):
         f = michaels_load.load_from_path(data_file_path)
         inps = f["inp"]
         outs = f["targ"]
@@ -411,6 +411,9 @@ class MichaelsDataset(Dataset):
             ti = None
 
         self.num_samples = inps.shape[0]
+        if limit is not None:
+            self.num_samples = min(limit, self.num_samples)
+
         self.sample_len = max([s.shape[1] for s in inps])
 
         self.with_label = with_label
@@ -442,7 +445,6 @@ class MichaelsDataset(Dataset):
         else:
             raw = trial_info[idx][0]
             norm = (raw // 10) - 2
-            #oh = F.one_hot(torch.tensor(norm), num_classes=8)
             if norm == 7:
                 norm = 6
             label = torch.tensor(norm)

@@ -239,3 +239,6 @@ class LSTMModel(nn.Module):
         out = self.fc(activation)
 
         return out
+
+def trunc_to_trial_end(data, trial_end):
+    return data * trial_end
