@@ -44,6 +44,7 @@ def get(
     batch_size=DEFAULT_BATCH_SIZE,
     num_stim_channels=35,
     stim_sigma=1,
+    stim_retain_grad=False,
     obs_out_dim=20,
 ):
     if observer_type == "passthrough":
@@ -73,6 +74,7 @@ def get(
             num_neurons_per_module,
             batch_size=batch_size,
             sigma=stim_sigma,
+            retain_grad=stim_retain_grad,
         )
     else:
         raise ValueError(f"Unrecognized stimulation type: {stimulation_type}")

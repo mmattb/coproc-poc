@@ -175,6 +175,7 @@ class StimulusGaussianExp(Stimulus):
         sigma=2.5,
         decay=0.3,
         batch_size=1,
+        retain_grad=False,
     ):
         super(StimulusGaussianExp, self).__init__(
             num_stim_channels, num_neurons, pad_right_neurons, batch_size=batch_size
@@ -184,6 +185,10 @@ class StimulusGaussianExp(Stimulus):
         self._vals = torch.zeros((batch_size, num_neurons))
         self._decay = decay
         self._norm = norm(0, self._sigma)
+        self._retain_grad = retain_grad
+
+        if retain_grad:
+            self._vals.retain_grad = True
 
         self.W = None
         self._calc_neuron_weights()
@@ -203,16 +208,26 @@ class StimulusGaussianExp(Stimulus):
         )
         self.W = win.unsqueeze(axis=0).repeat(self.batch_size, 1, 1)
 
+        if self._retain_grad:
+            self.W.retain_grad = True
+
     def reset(self, batch_size=None):
         super(StimulusGaussianExp, self).reset(batch_size=batch_size)
         self._vals = torch.zeros((self.batch_size, self.num_neurons))
+
+        if self._retain_grad:
+            self._vals.retain_grad = True
+
         self._calc_neuron_weights()
 
     def add(self, params):
         """
         params: (batch_size, num_stim_channels)
         """
-        P = params.clone().detach()
+        if not self._retain_grad:
+            P = params.clone().detach()
+        else:
+            P = params
 
         # (batch_size, num_neurons, num_stim_channels)
         W = self.W
@@ -227,6 +242,9 @@ class StimulusGaussianExp(Stimulus):
             (self.batch_size, self._num_neurons + self._pad_right_neurons)
         )
         stim_out[:, : self._num_neurons] = self._vals
+
+        if self._retain_grad:
+            stim_out.retain_grad = True
 
         # Update vals according to an exponential decay
         self._vals -= self._vals * self._decay

@@ -242,3 +242,24 @@ class LSTMModel(nn.Module):
 
 def trunc_to_trial_end(data, trial_end):
     return data * trial_end
+
+def loss_regressed(data, window_start=7, window_size=40):
+    end = len(data)
+
+    if end < window_start:
+        return False
+
+    ews = min(window_size, end)
+    ec = ews // 2
+    p0 = end - ews
+    p1 = end - ec
+    e0 = end - ec
+    e1 = end
+
+    m1 = sum([cv for cv in data[p0:p1]]) / (p1 - p0)
+    m2 = sum([cv for cv in data[e0:e1]]) / (e1 - e0)
+
+    if m1 < m2:
+        return True
+
+    return False

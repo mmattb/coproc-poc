@@ -198,20 +198,19 @@ class CPNNoiseyCollection(nn.Module):
             self.x = self.x0
             self.prev_output = self.activation_func(
                     torch.zeros((batch_size, self.num_neurons)))
-            self.setup(batch_size)
 
-        x = self.W @ self.prev_output.reshape(self.x.shape + (1,))
+        x = self.W[:batch_size, :, :] @ self.prev_output.reshape(self.x.shape + (1,))
         assert x.shape == (batch_size, self.num_neurons, 1)
 
-        x = x + self.I @ din.reshape(din.shape + (1,))
-        x = x.squeeze() + self.b
+        x = x + self.I[:batch_size, :, :] @ din.reshape(din.shape + (1,))
+        x = x.squeeze() + self.b[:batch_size, :]
         self.x = x
 
         rnn_output = self.activation_func(x)
         assert rnn_output.shape == (batch_size, self.num_neurons)
 
-        weighted = self.fc_w @ rnn_output.reshape(rnn_output.shape + (1,))
-        readout = weighted.squeeze(dim=2) + self.fc_b
+        weighted = self.fc_w[:batch_size, :, :] @ rnn_output.reshape(rnn_output.shape + (1,))
+        readout = weighted.squeeze(dim=2) + self.fc_b[:batch_size, :]
 
         self.prev_output = rnn_output
 
