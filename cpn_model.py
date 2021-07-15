@@ -106,7 +106,7 @@ class CPNNoiseyCollection(nn.Module):
     the rest, it acts the same, but with some amount of mean 0 noise added to
     every param.
     """
-    def __init__(self, cpn, noisey_pct=0.90, noise_var=0.3):
+    def __init__(self, cpn, noisey_pct=0.90, noise_var=0.3, white_noise_pct=0.2, white_noise_var=2.0):
         super(CPNNoiseyCollection, self).__init__()
 
         self.in_dim = cpn.in_dim
@@ -122,6 +122,9 @@ class CPNNoiseyCollection(nn.Module):
         self.cpn = cpn
         self.noisey_pct = noisey_pct
         self.noise_var = noise_var
+
+        self.white_noise_pct = white_noise_pct
+        self.white_noise_var = white_noise_var
 
         # (batch, num_neurons)
         self.x = None
@@ -212,6 +215,10 @@ class CPNNoiseyCollection(nn.Module):
         weighted = self.fc_w[:batch_size, :, :] @ rnn_output.reshape(rnn_output.shape + (1,))
         readout = weighted.squeeze(dim=2) + self.fc_b[:batch_size, :]
 
+        noisey_batch_size = int(batch_size * self.white_noise_pct)
+        noise = self.white_noise_var * (torch.rand(noisey_batch_size, self.out_dim) - 0.5)
+        readout[:noisey_batch_size, :] = noise[:, :]
+
         self.prev_output = rnn_output
 
         return readout
@@ -224,7 +231,8 @@ class CPNNoiseyLSTMCollection(nn.Module):
     def __init__(
             self, cpn, num_neurons=None,
             activation_func=torch.nn.Tanh,
-            noisey_pct=0.90, noise_var=0.3):
+            noisey_pct=0.90, noise_var=0.3,
+            white_noise_pct=0.3, white_noise_var=2):
         super(CPNNoiseyLSTMCollection, self).__init__()
 
         self.cpn = cpn
@@ -238,6 +246,8 @@ class CPNNoiseyLSTMCollection(nn.Module):
 
         self.noisey_pct = noisey_pct
         self.noise_var = noise_var
+        self.white_noise_pct = white_noise_pct
+        self.white_noise_var = white_noise_var
 
         self.ht = None
         self.ct = None
@@ -338,6 +348,10 @@ class CPNNoiseyLSTMCollection(nn.Module):
 
         weighted = self.fc_w @ activation.reshape(activation.shape + (1,))
         out = weighted.squeeze(dim=2) + self.fc_b
+
+        noisey_batch_size = int(batch_size * self.white_noise_pct)
+        noise = self.white_noise_var * (torch.rand(noisey_batch_size, self.out_dim) - 0.5)
+        out[:noisey_batch_size, :] = noise[:, :]
 
         return out
 
