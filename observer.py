@@ -32,7 +32,7 @@ class Observer(object):
 
 
 class ObserverGaussian1d(Observer):
-    def __init__(self, in_dim, out_dim=20, sigma=1.5):
+    def __init__(self, in_dim, out_dim=20, sigma=1.75):
         super(ObserverGaussian1d, self).__init__()
         self._in_dim = in_dim
         self._out_dim = out_dim

@@ -46,12 +46,13 @@ def get(
     stim_sigma=1,
     stim_retain_grad=False,
     obs_out_dim=20,
+    obs_sigma=1.75,
 ):
     if observer_type == "passthrough":
         observer_instance = observer.ObserverPassthrough(num_neurons_per_module)
     elif observer_type == "gaussian":
         observer_instance = observer.ObserverGaussian1d(
-            num_neurons_per_module, out_dim=obs_out_dim
+            num_neurons_per_module, out_dim=obs_out_dim, sigma=obs_sigma
         )
     else:
         raise ValueError(f"Unrecognized observer type: {observer_type}")
