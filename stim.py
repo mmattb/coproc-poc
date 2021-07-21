@@ -28,6 +28,10 @@ class Stimulus(object):
     def num_neurons(self):
         return self._num_neurons
 
+    @property
+    def pad_right_neurons(self):
+        return self._pad_right_neurons
+
     def add(self, params):
         raise NotImplementedError()
 
@@ -98,7 +102,7 @@ class Stimulus1to1(Stimulus):
 
     def get_next(self):
         stim_out = torch.zeros(
-            (self._batch_size, self._num_neurons + self._pad_right_neurons)
+            (self._batch_size, self._num_neurons + self.pad_right_neurons)
         )
 
         # shortcut
@@ -176,22 +180,32 @@ class StimulusGaussianExp(Stimulus):
         decay=0.3,
         batch_size=1,
         retain_grad=False,
+        cuda=False
     ):
         super(StimulusGaussianExp, self).__init__(
             num_stim_channels, num_neurons, pad_right_neurons, batch_size=batch_size
         )
 
         self._sigma = sigma
-        self._vals = torch.zeros((batch_size, num_neurons))
+        self._vals = torch.zeros((batch_size, num_neurons + pad_right_neurons))
         self._decay = decay
         self._norm = norm(0, self._sigma)
         self._retain_grad = retain_grad
+        self._cuda = cuda
 
         if retain_grad:
             self._vals.retain_grad = True
 
+        if cuda:
+            self._vals = self._vals.cuda()
+
         self.W = None
         self._calc_neuron_weights()
+
+    def cuda(self):
+        self._cuda = True
+        self._vals = self._vals.cuda()
+        self.W = self.W.cuda()
 
     def _calc_neuron_weights(self):
         win = (
@@ -206,6 +220,10 @@ class StimulusGaussianExp(Stimulus):
             .float()
             .T
         )
+
+        if self._cuda:
+            win = win.cuda()
+
         self.W = win.unsqueeze(axis=0).repeat(self.batch_size, 1, 1)
 
         if self._retain_grad:
@@ -213,12 +231,15 @@ class StimulusGaussianExp(Stimulus):
 
     def reset(self, batch_size=None):
         super(StimulusGaussianExp, self).reset(batch_size=batch_size)
-        self._vals = torch.zeros((self.batch_size, self.num_neurons))
+        self._vals = torch.zeros((self.batch_size, self.num_neurons + self.pad_right_neurons))
 
         if self._retain_grad:
             self._vals.retain_grad = True
 
         self._calc_neuron_weights()
+
+        if self._cuda:
+            self.cuda()
 
     def add(self, params):
         """
@@ -229,19 +250,19 @@ class StimulusGaussianExp(Stimulus):
         else:
             P = params
 
+        if self._cuda and not P.is_cuda:
+            P = P.cuda()
+
         # (batch_size, num_neurons, num_stim_channels)
         W = self.W
 
         # (batch_size, num_neurons)
         new_stim = W @ P.reshape(self.batch_size, self._num_stim_channels, 1)
 
-        self._vals += new_stim[:, :, 0]
+        self._vals[:, :self.num_neurons] += new_stim[:, :, 0]
 
     def get_next(self):
-        stim_out = torch.zeros(
-            (self.batch_size, self._num_neurons + self._pad_right_neurons)
-        )
-        stim_out[:, : self._num_neurons] = self._vals
+        stim_out = self._vals.clone()
 
         if self._retain_grad:
             stim_out.retain_grad = True
@@ -253,3 +274,4 @@ class StimulusGaussianExp(Stimulus):
 
     def __str__(self):
         return f"gaussianExp{self.num_stim_channels}.{self._sigma}"
+

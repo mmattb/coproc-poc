@@ -356,18 +356,20 @@ class MichaelsRNN(nn.Module):
         # Possibly fewer than 3, if we are dropping modules
         return outputs
 
-    def unroll(self, data_in):
-        data = utils.fill_jagged_array(
-            [
-                data_in,
-            ]
-        )
-
-        steps = data.shape[1]
+    def unroll(self, data_in, cuda=False):
+        """
+        data_in - (in_dim, time)
+        """
+        data = data_in.unsqueeze(axis=2)
+        steps = data_in.shape[1]
         pred_out = torch.empty((1, steps, self.output_dim))
+
+        if cuda:
+            pred_out.cuda()
+
         for tidx in range(steps):
             cur = data[:, tidx, :]
-            pred_out[0, tidx, :] = self(cur.T)
+            pred_out[0, tidx, :] = self(cur)
         return pred_out
 
     def stimulate(self, params):
@@ -400,7 +402,7 @@ class MichaelsRNN(nn.Module):
 
 
 class MichaelsDataset(Dataset):
-    def __init__(self, data_file_path, with_label=False, limit=None):
+    def __init__(self, data_file_path, with_label=False, limit=None, cuda=False):
         f = michaels_load.load_from_path(data_file_path)
         inps = f["inp"]
         outs = f["targ"]
@@ -419,12 +421,12 @@ class MichaelsDataset(Dataset):
         self.with_label = with_label
 
         self.data = []
-        self._load_data(inps, outs, trial_info=ti)
+        self._load_data(inps, outs, trial_info=ti, cuda=cuda)
 
     def __len__(self):
         return self.num_samples
 
-    def _load_data_single(self, idx, inps, outs, trial_info=None):
+    def _load_data_single(self, idx, inps, outs, trial_info=None, cuda=False):
         cur_in = inps[idx]
         cur_out = outs[idx]
 
@@ -440,6 +442,12 @@ class MichaelsDataset(Dataset):
         dout = torch.zeros((self.sample_len, cur_out.shape[0]), dtype=torch.float)
         dout[: cur_out.shape[1], :] = torch.tensor(cur_out.T[:, :])
 
+        if cuda:
+            din = din.cuda()
+            trial_end = trial_end.cuda()
+            trial_len = trial_len.cuda()
+            dout = dout.cuda()
+
         if trial_info is None:
             return din, trial_end, trial_len, dout
         else:
@@ -448,12 +456,17 @@ class MichaelsDataset(Dataset):
             if norm == 7:
                 norm = 6
             label = torch.tensor(norm)
+
+            if cuda:
+                label = label.cuda()
+
             return din, trial_end, trial_len, dout, label
 
-    def _load_data(self, inps, outs, trial_info=None):
+    def _load_data(self, inps, outs, trial_info=None, cuda=False):
         for i in range(self.num_samples):
             self.data.append(
-                self._load_data_single(i, inps, outs, trial_info=trial_info)
+                self._load_data_single(i, inps, outs, trial_info=trial_info,
+                        cuda=cuda)
             )
 
     def __getitem__(self, idx):

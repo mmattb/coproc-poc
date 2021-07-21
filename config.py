@@ -47,12 +47,15 @@ def get(
     stim_retain_grad=False,
     obs_out_dim=20,
     obs_sigma=1.75,
+    cuda=False,
 ):
     if observer_type == "passthrough":
-        observer_instance = observer.ObserverPassthrough(num_neurons_per_module)
+        observer_instance = observer.ObserverPassthrough(num_neurons_per_module,
+            )
     elif observer_type == "gaussian":
         observer_instance = observer.ObserverGaussian1d(
-            num_neurons_per_module, out_dim=obs_out_dim, sigma=obs_sigma
+            num_neurons_per_module, out_dim=obs_out_dim, sigma=obs_sigma,
+            cuda=cuda
         )
     else:
         raise ValueError(f"Unrecognized observer type: {observer_type}")
@@ -63,6 +66,9 @@ def get(
             num_neurons_per_module,
         )
     elif stimulation_type == "gaussianAlpha":
+        if cuda:
+            raise NotImplementedError()
+
         # NOTE: can add the num_stim_channels and sigma arg above
         stimulus = stim.StimulusGaussian(
             num_stim_channels,
@@ -76,17 +82,22 @@ def get(
             batch_size=batch_size,
             sigma=stim_sigma,
             retain_grad=stim_retain_grad,
+            cuda=cuda
         )
     else:
         raise ValueError(f"Unrecognized stimulation type: {stimulation_type}")
 
     if lesion_type == "outputs":
+        if cuda:
+            raise NotImplementedError()
+
         lesion_instance = lesion.LesionOutputs(
             num_neurons_per_module, *lesion_args,
         )
     elif lesion_type == "connection":
         lesion_instance = lesion.LesionConnectionsByIdxs(
             num_neurons_per_module, *lesion_args,
+            cuda=cuda
         )
 
     elif lesion_type == "none":

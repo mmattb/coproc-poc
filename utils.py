@@ -172,7 +172,8 @@ class LSTMModelSimple(nn.Module):
 # I've unrolled it to keep the interface simple.
 class LSTMModel(nn.Module):
     def __init__(
-        self, in_dim, out_dim, num_neurons=None, activation_func=torch.nn.Tanh
+        self, in_dim, out_dim, num_neurons=None, activation_func=torch.nn.Tanh,
+        cuda=False
     ):
         super().__init__()
 
@@ -194,6 +195,10 @@ class LSTMModel(nn.Module):
 
         self.ht = None
         self.ct = None
+
+        self._cuda = cuda
+        if cuda:
+            self.cuda()
 
         # Used purely for dropping gradients on the ground.
         #  We do this to reset between learning epochs where
@@ -221,6 +226,10 @@ class LSTMModel(nn.Module):
         if self.ht is None:
             self.ht = torch.zeros(batch_size, self.num_neurons)
             self.ct = torch.zeros(batch_size, self.num_neurons)
+
+            if self._cuda:
+                self.ht = self.ht.cuda()
+                self.ct = self.ct.cuda()
 
         HS = self.num_neurons
         # batch the computations into a single matrix multiplication

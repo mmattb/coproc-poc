@@ -11,7 +11,7 @@ import utils
 
 class StimModel(nn.Module):
     def __init__(self, in_dim, out_dim, activation_func=utils.ReTanh,
-            num_neurons=None):
+            num_neurons=None, cuda=False):
         super(StimModel, self).__init__()
 
         if num_neurons is None:
@@ -20,6 +20,8 @@ class StimModel(nn.Module):
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.activation_func_t = activation_func
+
+        self._cuda = cuda
 
         if activation_func is nn.PReLU:
             self.activation_func = activation_func(num_neurons)
@@ -78,6 +80,11 @@ class StimModel(nn.Module):
             self.x0 = torch.zeros((batch_size, self.num_neurons))
             self.x = self.x0
             self.prev_output = torch.zeros((batch_size, self.num_neurons))
+
+            if self._cuda:
+                self.x0 = self.x0.cuda()
+                self.x = self.x.cuda()
+                self.prev_output = self.prev_output.cuda()
 
         x = self.W.reshape((1,) + self.W.shape) @ self.prev_output.reshape(
             self.prev_output.shape + (1,)
