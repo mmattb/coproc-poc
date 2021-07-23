@@ -180,7 +180,7 @@ class StimulusGaussianExp(Stimulus):
         decay=0.3,
         batch_size=1,
         retain_grad=False,
-        cuda=False
+        cuda=None
     ):
         super(StimulusGaussianExp, self).__init__(
             num_stim_channels, num_neurons, pad_right_neurons, batch_size=batch_size
@@ -196,16 +196,15 @@ class StimulusGaussianExp(Stimulus):
         if retain_grad:
             self._vals.retain_grad = True
 
-        if cuda:
-            self._vals = self._vals.cuda()
+        if cuda is not None:
+            self._vals = self._vals.cuda(cuda)
 
         self.W = None
         self._calc_neuron_weights()
 
     def cuda(self):
-        self._cuda = True
-        self._vals = self._vals.cuda()
-        self.W = self.W.cuda()
+        self._vals = self._vals.cuda(self._cuda)
+        self.W = self.W.cuda(self._cuda)
 
     def _calc_neuron_weights(self):
         win = (
@@ -221,8 +220,8 @@ class StimulusGaussianExp(Stimulus):
             .T
         )
 
-        if self._cuda:
-            win = win.cuda()
+        if self._cuda is not None:
+            win = win.cuda(self._cuda)
 
         self.W = win.unsqueeze(axis=0).repeat(self.batch_size, 1, 1)
 
@@ -238,7 +237,7 @@ class StimulusGaussianExp(Stimulus):
 
         self._calc_neuron_weights()
 
-        if self._cuda:
+        if self._cuda is not None:
             self.cuda()
 
     def add(self, params):
@@ -250,8 +249,8 @@ class StimulusGaussianExp(Stimulus):
         else:
             P = params
 
-        if self._cuda and not P.is_cuda:
-            P = P.cuda()
+        if self._cuda is not None and not P.is_cuda:
+            P = P.cuda(self._cuda)
 
         # (batch_size, num_neurons, num_stim_channels)
         W = self.W

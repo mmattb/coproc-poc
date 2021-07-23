@@ -233,7 +233,7 @@ class CPNNoiseyLSTMCollection(nn.Module):
             activation_func=torch.nn.Tanh,
             noisey_pct=0.90, noise_var=0.3,
             white_noise_pct=0.3, white_noise_var=2,
-            cuda=False):
+            cuda=None):
         super(CPNNoiseyLSTMCollection, self).__init__()
 
         self.cpn = cpn
@@ -325,10 +325,10 @@ class CPNNoiseyLSTMCollection(nn.Module):
             self.ct = torch.zeros(batch_size, self.num_neurons)
             self.setup(batch_size)
 
-            if self._cuda:
-                self.ht = self.ht.cuda()
-                self.ct = self.ct.cuda()
-                self.cuda()
+            if self._cuda is not None:
+                self.ht = self.ht.cuda(self._cuda)
+                self.ct = self.ct.cuda(self._cuda)
+                self.cuda(self._cuda)
 
         # batch the computations into a single matrix multiplication
         gates = (x_t.unsqueeze(dim=1) @ self.W).squeeze()

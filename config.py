@@ -47,7 +47,7 @@ def get(
     stim_retain_grad=False,
     obs_out_dim=20,
     obs_sigma=1.75,
-    cuda=False,
+    cuda=None,
 ):
     if observer_type == "passthrough":
         observer_instance = observer.ObserverPassthrough(num_neurons_per_module,

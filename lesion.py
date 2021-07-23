@@ -61,7 +61,7 @@ class LesionConnectionsByIdxs(Lesion):
     application = "connection"
 
     def __init__(self, num_neurons_per_module, idxs, idxs_are_modules=True,
-            cuda=False):
+            cuda=None):
         # idxs: an iterable of (start_idx_in, end_idx_in, start_idx_out, end_idx_out),
         #  where those indices indicate modules if idxs_are_modules,
         # otherwise indicating neuron ranges
@@ -85,15 +85,12 @@ class LesionConnectionsByIdxs(Lesion):
             else:
                 self.lesion_mask[start_out:end_out, start_in:end_in] = 0.0
 
-        if cuda:
-            self.lesion_mask = self.lesion_mask.cuda()
+        if cuda is not None:
+            self.lesion_mask = self.lesion_mask.cuda(cuda)
 
     def lesion(self, network, x):
         out = self.lesion_mask * x
         return out
-
-    def cuda(self):
-        self.lesion_mask = self.lesion_mask.cuda()
 
     def __str__(self):
         return f"connectionsIdxs{self.idxs}"

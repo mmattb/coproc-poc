@@ -32,7 +32,7 @@ class Observer(object):
 
 
 class ObserverGaussian1d(Observer):
-    def __init__(self, in_dim, out_dim=20, sigma=1.75, cuda=False):
+    def __init__(self, in_dim, out_dim=20, sigma=1.75, cuda=None):
         super(ObserverGaussian1d, self).__init__()
         self._in_dim = in_dim
         self._out_dim = out_dim
@@ -42,8 +42,8 @@ class ObserverGaussian1d(Observer):
         self.norm, self.weights = gaussian_array_weights(in_dim, out_dim, sigma, normalize=True)
         self.weights = torch.tensor(self.weights.reshape((1,) + self.weights.shape)).float()
 
-        if cuda:
-            self.weights = self.weights.cuda()
+        if cuda is not None:
+            self.weights = self.weights.cuda(cuda)
 
     def reduce(self, x):
         # Note: weights may broadcast up if we have batches

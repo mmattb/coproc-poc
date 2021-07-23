@@ -356,7 +356,7 @@ class MichaelsRNN(nn.Module):
         # Possibly fewer than 3, if we are dropping modules
         return outputs
 
-    def unroll(self, data_in, cuda=False):
+    def unroll(self, data_in, cuda=None):
         """
         data_in - (in_dim, time)
         """
@@ -364,8 +364,8 @@ class MichaelsRNN(nn.Module):
         steps = data_in.shape[1]
         pred_out = torch.empty((1, steps, self.output_dim))
 
-        if cuda:
-            pred_out.cuda()
+        if cuda is not None:
+            pred_out = pred_out.cuda(cuda)
 
         for tidx in range(steps):
             cur = data[:, tidx, :]
@@ -402,7 +402,7 @@ class MichaelsRNN(nn.Module):
 
 
 class MichaelsDataset(Dataset):
-    def __init__(self, data_file_path, with_label=False, limit=None, cuda=False):
+    def __init__(self, data_file_path, with_label=False, limit=None, cuda=None):
         f = michaels_load.load_from_path(data_file_path)
         inps = f["inp"]
         outs = f["targ"]
@@ -426,7 +426,7 @@ class MichaelsDataset(Dataset):
     def __len__(self):
         return self.num_samples
 
-    def _load_data_single(self, idx, inps, outs, trial_info=None, cuda=False):
+    def _load_data_single(self, idx, inps, outs, trial_info=None, cuda=None):
         cur_in = inps[idx]
         cur_out = outs[idx]
 
@@ -442,11 +442,11 @@ class MichaelsDataset(Dataset):
         dout = torch.zeros((self.sample_len, cur_out.shape[0]), dtype=torch.float)
         dout[: cur_out.shape[1], :] = torch.tensor(cur_out.T[:, :])
 
-        if cuda:
-            din = din.cuda()
-            trial_end = trial_end.cuda()
-            trial_len = trial_len.cuda()
-            dout = dout.cuda()
+        if cuda is not None:
+            din = din.cuda(cuda)
+            trial_end = trial_end.cuda(cuda)
+            trial_len = trial_len.cuda(cuda)
+            dout = dout.cuda(cuda)
 
         if trial_info is None:
             return din, trial_end, trial_len, dout
@@ -457,12 +457,12 @@ class MichaelsDataset(Dataset):
                 norm = 6
             label = torch.tensor(norm)
 
-            if cuda:
-                label = label.cuda()
+            if cuda is not None:
+                label = label.cuda(cuda)
 
             return din, trial_end, trial_len, dout, label
 
-    def _load_data(self, inps, outs, trial_info=None, cuda=False):
+    def _load_data(self, inps, outs, trial_info=None, cuda=None):
         for i in range(self.num_samples):
             self.data.append(
                 self._load_data_single(i, inps, outs, trial_info=trial_info,
