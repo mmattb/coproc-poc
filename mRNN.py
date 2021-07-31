@@ -1,17 +1,11 @@
 import random
-import statistics
-import sys
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn
-import torch.nn.functional as F
-from torch.optim import Adam
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 import michaels_load
-import stim
 import utils
 
 
@@ -27,11 +21,6 @@ num_output_features = 50
 sparsity = 0.1
 
 
-# Scalars for regularizers
-sc_loss_fr = 1e-3
-sc_loss_io = 1e-5
-
-
 class MichaelsRNN(nn.Module):
     def __init__(
         self,
@@ -43,9 +32,7 @@ class MichaelsRNN(nn.Module):
         sparsity=sparsity,
         synaptic_scaling_factor=synaptic_scaling_factor,
         activation_func=utils.ReTanh,
-        sc_loss_fr=sc_loss_fr,
-        sc_loss_io=sc_loss_io,
-        output_dim=50,
+        output_dim=num_output_features,
         stimulus=None,
         lesion=None,
         init_data_path=None,
@@ -64,15 +51,8 @@ class MichaelsRNN(nn.Module):
         self.activation_func = activation_func()
         self.output_dim = output_dim
 
-        self.sc_loss_fr = sc_loss_fr
-        self.sc_loss_io = sc_loss_io
-
         npm = self.num_neurons_per_module
         numn = self.num_neurons
-
-        # Used in firing rate regularizer
-        self.sum_fr = 0.0
-        self.denom_fr = 0.0
 
         # Recurrent state -----------------
         # Last outputs from the RNN. Setting to 0 for the first time step.
@@ -244,10 +224,6 @@ class MichaelsRNN(nn.Module):
         # Internal state of the neurons. Referred to as x_i in the text
         self.x = None
 
-        # Accumulated firing rates, for regularizer
-        self.sum_fr = 0.0
-        self.denom_fr = 0.0
-
     def reset(self):
         # 'tis an alias
         self.reset_hidden()
@@ -326,10 +302,6 @@ class MichaelsRNN(nn.Module):
         self.x = pre_response
         self.prev_output = output
 
-        # Used for firing rate (output) regularization
-        #self.sum_fr += torch.sum(torch.square(output))
-        #self.denom_fr += self.num_neurons + batch_size
-
         # Return only from the final module
         ret = self.fc(output[:, : self.num_neurons_per_module])
         return ret
@@ -378,27 +350,6 @@ class MichaelsRNN(nn.Module):
     def get_next_stimulus(self):
         # (batch_size, num_neurons)
         return self.stimulus.get_next()
-
-    # Firing rate regularizer
-    def fr_reg(self):
-        loss = self.sum_fr / self.denom_fr
-        return loss
-
-    # Input/outout weight regularizer
-    def io_reg(self):
-        loss = torch.sum(torch.square(self.fc.weight))
-        loss += torch.sum(torch.square(self.I))
-
-        return loss
-
-    def calc_loss(self, preds, outputs, lf=None):
-        if lf is None:
-            lf = nn.MSELoss()
-        loss = lf(preds, outputs)
-
-        loss += self.sc_loss_fr * self.fr_reg()
-        loss += self.sc_loss_io * self.io_reg()
-        return loss
 
 
 class MichaelsDataset(Dataset):
@@ -450,98 +401,26 @@ class MichaelsDataset(Dataset):
 
         if trial_info is None:
             return din, trial_end, trial_len, dout
-        else:
-            raw = trial_info[idx][0]
-            norm = (raw // 10) - 2
-            if norm == 7:
-                norm = 6
-            label = torch.tensor(norm)
 
-            if cuda is not None:
-                label = label.cuda(cuda)
+        raw = trial_info[idx][0]
+        norm = (raw // 10) - 2
+        if norm == 7:
+            norm = 6
+        label = torch.tensor(norm)
 
-            return din, trial_end, trial_len, dout, label
+        if cuda is not None:
+            label = label.cuda(cuda)
+
+        return din, trial_end, trial_len, dout, label
 
     def _load_data(self, inps, outs, trial_info=None, cuda=None):
         for i in range(self.num_samples):
             self.data.append(
-                self._load_data_single(i, inps, outs, trial_info=trial_info,
-                        cuda=cuda)
+                self._load_data_single(i, inps, outs, trial_info=trial_info, cuda=cuda)
             )
 
     def __getitem__(self, idx):
         return self.data[idx]
-
-
-def generate(
-    model_path,
-    init_data_path=None,
-    stimulus=None,
-    lesion=None,
-    recover_after_lesion=True,
-    recover_train_batch_size=64,
-    recover_train_pct_stop_thresh=0.0003,
-    recover_train_max_epochs=1000,
-):
-
-    if init_data_path is None:
-        init_data_path = michaels_load.get_default_path()
-
-    mrnn = MichaelsRNN(init_data_path=init_data_path, stimulus=stimulus, lesion=lesion)
-
-    if recover_after_lesion:
-        torch.save(mrnn.state_dict(), model_path + "_pre")
-
-        dataset = MichaelsDataset(init_data_path)
-        optimizer = Adam(mrnn.parameters(), lr=0.008)
-        best_mean_loss = 1.0e55
-        running_mean_loss = None
-
-        for eidx in range(recover_train_max_epochs):
-            loader = DataLoader(
-                dataset, batch_size=recover_train_batch_size, shuffle=True
-            )
-
-            losses = []
-            for i_batch, sampled_batch in enumerate(loader):
-                mrnn.reset_hidden()
-                optimizer.zero_grad()
-
-                din, _, _, dout = sampled_batch
-                batch_size = din.shape[0]
-                example_len = din.shape[1]
-
-                preds = torch.empty((batch_size, example_len, mrnn.output_dim))
-                for tidx in range(example_len):
-                    cur_in = din[:, tidx, :]
-                    pred = mrnn(cur_in.T)
-                    preds[:, tidx, :] = pred[:, :]
-
-                loss = mrnn.calc_loss(preds, dout)
-                losses.append(loss.item())
-
-                loss.backward()
-                mrnn.set_sparse_grads()
-                optimizer.step()
-
-            epoch_mean_loss = statistics.mean(losses)
-            print(f"Mean loss: {epoch_mean_loss}")
-            if running_mean_loss is None:
-                running_mean_loss = epoch_mean_loss
-            else:
-                running_mean_loss = (running_mean_loss + epoch_mean_loss) / 2.0
-            if running_mean_loss < best_mean_loss:
-                if (
-                    (best_mean_loss - running_mean_loss) / running_mean_loss
-                ) <= recover_train_pct_stop_thresh:
-                    break
-                best_mean_loss = running_mean_loss
-
-        if eidx >= recover_train_max_epochs:
-            sys.stderr.write(f"Learning didn't converage after {eidx} epochs\n")
-
-    torch.save(mrnn.state_dict(), model_path)
-    return mrnn
 
 
 def load_from_file(data_path, pretrained=False, **kwargs):

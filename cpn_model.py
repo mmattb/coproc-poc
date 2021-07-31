@@ -1,25 +1,14 @@
-import sys
-import time
 
-import h5py
 import numpy as np
 import torch
 import torch.autograd
 from torch import nn
-from torch.optim import AdamW
 
-import mRNN
-import stim
-import stim_model
 import utils
 
 
-DEFAULT_STIM_REG_WEIGHT = 1e-7
-
-
 class CPNModel(nn.Module):
-    def __init__(self, in_dim, out_dim, activation_func=utils.ReTanh,
-            num_neurons=None):
+    def __init__(self, in_dim, out_dim, activation_func=utils.ReTanh, num_neurons=None):
         super(CPNModel, self).__init__()
 
         if num_neurons is None:
@@ -83,7 +72,8 @@ class CPNModel(nn.Module):
             self.x0 = torch.zeros((batch_size, self.num_neurons))
             self.x = self.x0
             self.prev_output = self.activation_func(
-                    torch.zeros((batch_size, self.num_neurons)))
+                torch.zeros((batch_size, self.num_neurons))
+            )
 
         x = self.W @ self.prev_output.reshape(self.x.shape + (1,))
         assert x.shape == (batch_size, self.num_neurons, 1)
@@ -99,6 +89,7 @@ class CPNModel(nn.Module):
 
         return readout
 
+
 class CPNNoiseyCollection(nn.Module):
     """
     This acts like a CPN, but in-fact varies its parameters for each sample in
@@ -106,7 +97,15 @@ class CPNNoiseyCollection(nn.Module):
     the rest, it acts the same, but with some amount of mean 0 noise added to
     every param.
     """
-    def __init__(self, cpn, noisey_pct=0.90, noise_var=0.3, white_noise_pct=0.2, white_noise_var=2.0):
+
+    def __init__(
+        self,
+        cpn,
+        noisey_pct=0.90,
+        noise_var=0.3,
+        white_noise_pct=0.2,
+        white_noise_var=2.0,
+    ):
         super(CPNNoiseyCollection, self).__init__()
 
         self.in_dim = cpn.in_dim
@@ -132,6 +131,13 @@ class CPNNoiseyCollection(nn.Module):
         self.prev_output = None
         self.x0 = None
 
+        self.W = None
+        self.I = None
+        self.b = None
+        self.fc_w = None
+        self.fc_b = None
+
+        self._opt = None
 
     def reset(self):
         self.x = None
@@ -147,41 +153,51 @@ class CPNNoiseyCollection(nn.Module):
 
             # Inter-neuron hidden recurrent weights
             # (batch_size, num_neurons, num_neurons)
-            self.W = nn.Parameter(torch.empty((batch_size, self.num_neurons,
-                    self.num_neurons)))
+            self.W = nn.Parameter(
+                torch.empty((batch_size, self.num_neurons, self.num_neurons))
+            )
             self.W[:, :, :] = cpn.W[:, :, :].repeat(batch_size, 1, 1)
             self.W[:noisey_cnt, :, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.num_neurons,
-                    self.num_neurons) - 0.5)
+                torch.rand(noisey_cnt, self.num_neurons, self.num_neurons) - 0.5
+            )
 
             # Neuron response to input
             # (batch_size, num_neurons, in_dim)
-            self.I = nn.Parameter(torch.empty((batch_size, self.num_neurons,
-                    self.in_dim)))
+            self.I = nn.Parameter(
+                torch.empty((batch_size, self.num_neurons, self.in_dim))
+            )
             self.I[:, :, :] = cpn.I[:, :, :].repeat(batch_size, 1, 1)
             self.I[:noisey_cnt, :, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.num_neurons,
-                    self.in_dim) - 0.5)
+                torch.rand(noisey_cnt, self.num_neurons, self.in_dim) - 0.5
+            )
 
             # Neuron biases
             self.b = nn.Parameter(torch.empty((batch_size, self.num_neurons)))
             self.b[:, :] = cpn.b[:].reshape(1, self.num_neurons).repeat(batch_size, 1)
             self.b[:noisey_cnt, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.num_neurons) - 0.5)
+                torch.rand(noisey_cnt, self.num_neurons) - 0.5
+            )
 
             # This one is harder... Need to re-implement fc...
-            self.fc_w = nn.Parameter(torch.empty(batch_size,
-                    self.out_dim, self.num_neurons))
-            self.fc_w[:, :, :] = cpn.fc.weight[:, :].reshape(1, self.out_dim,
-                    self.num_neurons).repeat(batch_size, 1, 1)
+            self.fc_w = nn.Parameter(
+                torch.empty(batch_size, self.out_dim, self.num_neurons)
+            )
+            self.fc_w[:, :, :] = (
+                cpn.fc.weight[:, :]
+                .reshape(1, self.out_dim, self.num_neurons)
+                .repeat(batch_size, 1, 1)
+            )
             self.fc_w[:noisey_cnt, :, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.out_dim, self.num_neurons) - 0.5)
+                torch.rand(noisey_cnt, self.out_dim, self.num_neurons) - 0.5
+            )
 
             self.fc_b = nn.Parameter(torch.empty(batch_size, self.out_dim))
-            self.fc_b[:, :] = cpn.fc.bias[:].reshape(1, self.out_dim).repeat(
-                    batch_size, 1)
+            self.fc_b[:, :] = (
+                cpn.fc.bias[:].reshape(1, self.out_dim).repeat(batch_size, 1)
+            )
             self.fc_b[:noisey_cnt, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.out_dim) - 0.5)
+                torch.rand(noisey_cnt, self.out_dim) - 0.5
+            )
 
         # Used purely for dropping gradients on the ground.
         #  We do this to reset between learning epochs where
@@ -200,7 +216,8 @@ class CPNNoiseyCollection(nn.Module):
             self.x0 = torch.zeros((batch_size, self.num_neurons))
             self.x = self.x0
             self.prev_output = self.activation_func(
-                    torch.zeros((batch_size, self.num_neurons)))
+                torch.zeros((batch_size, self.num_neurons))
+            )
 
         x = self.W[:batch_size, :, :] @ self.prev_output.reshape(self.x.shape + (1,))
         assert x.shape == (batch_size, self.num_neurons, 1)
@@ -212,11 +229,15 @@ class CPNNoiseyCollection(nn.Module):
         rnn_output = self.activation_func(x)
         assert rnn_output.shape == (batch_size, self.num_neurons)
 
-        weighted = self.fc_w[:batch_size, :, :] @ rnn_output.reshape(rnn_output.shape + (1,))
+        weighted = self.fc_w[:batch_size, :, :] @ rnn_output.reshape(
+            rnn_output.shape + (1,)
+        )
         readout = weighted.squeeze(dim=2) + self.fc_b[:batch_size, :]
 
         noisey_batch_size = int(batch_size * self.white_noise_pct)
-        noise = self.white_noise_var * (torch.rand(noisey_batch_size, self.out_dim) - 0.5)
+        noise = self.white_noise_var * (
+            torch.rand(noisey_batch_size, self.out_dim) - 0.5
+        )
         readout[:noisey_batch_size, :] = noise[:, :]
 
         self.prev_output = rnn_output
@@ -227,13 +248,18 @@ class CPNNoiseyCollection(nn.Module):
 class CPNModelLSTM(utils.LSTMModel):
     pass
 
+
 class CPNNoiseyLSTMCollection(nn.Module):
     def __init__(
-            self, cpn, num_neurons=None,
-            activation_func=torch.nn.Tanh,
-            noisey_pct=0.90, noise_var=0.3,
-            white_noise_pct=0.3, white_noise_var=2,
-            cuda=None):
+        self,
+        cpn,
+        activation_func=torch.nn.Tanh,
+        noisey_pct=0.90,
+        noise_var=0.3,
+        white_noise_pct=0.3,
+        white_noise_var=2,
+        cuda=None,
+    ):
         super(CPNNoiseyLSTMCollection, self).__init__()
 
         self.cpn = cpn
@@ -254,12 +280,18 @@ class CPNNoiseyLSTMCollection(nn.Module):
 
         self.ht = None
         self.ct = None
+        self.W = None
+        self.U = None
+        self.bias = None
+        self.fc_w = None
+        self.fc_b = None
+
+        self._opt = none
 
     def reset(self):
         self.ht = None
         self.ct = None
         self._opt.zero_grad()
-
 
     def setup(self, batch_size):
         """
@@ -272,41 +304,54 @@ class CPNNoiseyLSTMCollection(nn.Module):
             noisey_cnt = int(batch_size * self.noisey_pct)
             cpn = self.cpn
 
-            self.W = nn.Parameter(torch.Tensor(batch_size, self.in_dim,
-                    self.num_neurons * 4))
-            self.W[:, :, :] = cpn.W[:, :].reshape((1,) + cpn.W.shape).repeat(
-                    batch_size, 1, 1)
+            self.W = nn.Parameter(
+                torch.Tensor(batch_size, self.in_dim, self.num_neurons * 4)
+            )
+            self.W[:, :, :] = (
+                cpn.W[:, :].reshape((1,) + cpn.W.shape).repeat(batch_size, 1, 1)
+            )
             self.W[:noisey_cnt, :, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.W.shape[1], self.W.shape[2]) -
-                    0.5)
+                torch.rand(noisey_cnt, self.W.shape[1], self.W.shape[2]) - 0.5
+            )
 
-            self.U = nn.Parameter(torch.Tensor(batch_size, self.num_neurons,
-                    self.num_neurons * 4))
-            self.U[:, :, :] = cpn.U[:, :].reshape((1,) + cpn.U.shape).repeat(
-                    batch_size, 1, 1)
+            self.U = nn.Parameter(
+                torch.Tensor(batch_size, self.num_neurons, self.num_neurons * 4)
+            )
+            self.U[:, :, :] = (
+                cpn.U[:, :].reshape((1,) + cpn.U.shape).repeat(batch_size, 1, 1)
+            )
             self.U[:noisey_cnt, :, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.U.shape[1], self.U.shape[2]) -
-                    0.5)
+                torch.rand(noisey_cnt, self.U.shape[1], self.U.shape[2]) - 0.5
+            )
 
             self.bias = nn.Parameter(torch.Tensor(batch_size, self.num_neurons * 4))
-            self.bias[:, :] = cpn.bias[:].reshape(1, cpn.bias.shape[0]).repeat(
-                    batch_size, 1)
+            self.bias[:, :] = (
+                cpn.bias[:].reshape(1, cpn.bias.shape[0]).repeat(batch_size, 1)
+            )
             self.bias[:noisey_cnt, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.bias.shape[1]) - 0.5)
+                torch.rand(noisey_cnt, self.bias.shape[1]) - 0.5
+            )
 
             # This one is harder... Need to re-implement fc...
-            self.fc_w = nn.Parameter(torch.empty(batch_size,
-                    self.out_dim, self.num_neurons))
-            self.fc_w[:, :, :] = cpn.fc.weight[:, :].reshape(1, self.out_dim,
-                    self.num_neurons).repeat(batch_size, 1, 1)
+            self.fc_w = nn.Parameter(
+                torch.empty(batch_size, self.out_dim, self.num_neurons)
+            )
+            self.fc_w[:, :, :] = (
+                cpn.fc.weight[:, :]
+                .reshape(1, self.out_dim, self.num_neurons)
+                .repeat(batch_size, 1, 1)
+            )
             self.fc_w[:noisey_cnt, :, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.out_dim, self.num_neurons) - 0.5)
+                torch.rand(noisey_cnt, self.out_dim, self.num_neurons) - 0.5
+            )
 
             self.fc_b = nn.Parameter(torch.empty(batch_size, self.out_dim))
-            self.fc_b[:, :] = cpn.fc.bias[:].reshape(1, self.out_dim).repeat(
-                    batch_size, 1)
+            self.fc_b[:, :] = (
+                cpn.fc.bias[:].reshape(1, self.out_dim).repeat(batch_size, 1)
+            )
             self.fc_b[:noisey_cnt, :] += self.noise_var * (
-                    torch.rand(noisey_cnt, self.out_dim) - 0.5)
+                torch.rand(noisey_cnt, self.out_dim) - 0.5
+            )
 
         # Used purely for dropping gradients on the ground.
         #  We do this to reset between learning epochs where
@@ -357,9 +402,9 @@ class CPNNoiseyLSTMCollection(nn.Module):
         out = weighted.squeeze(dim=2) + self.fc_b
 
         noisey_batch_size = int(batch_size * self.white_noise_pct)
-        noise = self.white_noise_var * (torch.rand(noisey_batch_size, self.out_dim) - 0.5)
+        noise = self.white_noise_var * (
+            torch.rand(noisey_batch_size, self.out_dim) - 0.5
+        )
         out[:noisey_batch_size, :] = noise[:, :]
 
         return out
-
-

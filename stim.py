@@ -1,5 +1,3 @@
-import copy
-
 import numpy as np
 from scipy.stats import norm
 import torch
@@ -156,8 +154,10 @@ class StimulusGaussian(Stimulus1to1):
 
     def get_neuron_weights(self):
         win = utils.array_weights(
-            self._num_neurons, self._num_stim_channels, distance_func=self._norm.pdf,
-            normalize=True
+            self._num_neurons,
+            self._num_stim_channels,
+            self._norm.pdf,
+            normalize=True,
         )
         wout = np.repeat(
             win.reshape(1, self._num_stim_channels, self._num_neurons),
@@ -180,7 +180,7 @@ class StimulusGaussianExp(Stimulus):
         decay=0.3,
         batch_size=1,
         retain_grad=False,
-        cuda=None
+        cuda=None,
     ):
         super(StimulusGaussianExp, self).__init__(
             num_stim_channels, num_neurons, pad_right_neurons, batch_size=batch_size
@@ -212,7 +212,7 @@ class StimulusGaussianExp(Stimulus):
                 utils.array_weights(
                     self._num_neurons,
                     self._num_stim_channels,
-                    distance_func=self._norm.pdf,
+                    self._norm.pdf,
                     normalize=True,
                 )
             )
@@ -230,7 +230,9 @@ class StimulusGaussianExp(Stimulus):
 
     def reset(self, batch_size=None):
         super(StimulusGaussianExp, self).reset(batch_size=batch_size)
-        self._vals = torch.zeros((self.batch_size, self.num_neurons + self.pad_right_neurons))
+        self._vals = torch.zeros(
+            (self.batch_size, self.num_neurons + self.pad_right_neurons)
+        )
 
         if self._retain_grad:
             self._vals.retain_grad = True
@@ -258,7 +260,7 @@ class StimulusGaussianExp(Stimulus):
         # (batch_size, num_neurons)
         new_stim = W @ P.reshape(self.batch_size, self._num_stim_channels, 1)
 
-        self._vals[:, :self.num_neurons] += new_stim[:, :, 0]
+        self._vals[:, : self.num_neurons] += new_stim[:, :, 0]
 
     def get_next(self):
         stim_out = self._vals.clone()
@@ -273,4 +275,3 @@ class StimulusGaussianExp(Stimulus):
 
     def __str__(self):
         return f"gaussianExp{self.num_stim_channels}.{self._sigma}"
-

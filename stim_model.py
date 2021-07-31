@@ -1,17 +1,15 @@
-import h5py
 import numpy as np
 import torch
 import torch.autograd
 from torch import nn
-from torch.optim import Adam
-from torch.utils.data import Dataset, DataLoader
 
 import utils
 
 
 class StimModel(nn.Module):
-    def __init__(self, in_dim, out_dim, activation_func=utils.ReTanh,
-            num_neurons=None, cuda=None):
+    def __init__(
+        self, in_dim, out_dim, activation_func=utils.ReTanh, num_neurons=None, cuda=None
+    ):
         super(StimModel, self).__init__()
 
         if num_neurons is None:

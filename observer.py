@@ -39,8 +39,12 @@ class ObserverGaussian1d(Observer):
         self._cuda = cuda
         self.sigma = sigma
 
-        self.norm, self.weights = gaussian_array_weights(in_dim, out_dim, sigma, normalize=True)
-        self.weights = torch.tensor(self.weights.reshape((1,) + self.weights.shape)).float()
+        self.norm, self.weights = gaussian_array_weights(
+            in_dim, out_dim, sigma, normalize=True
+        )
+        self.weights = torch.tensor(
+            self.weights.reshape((1,) + self.weights.shape)
+        ).float()
 
         if cuda is not None:
             self.weights = self.weights.cuda(cuda)
@@ -53,8 +57,10 @@ class ObserverGaussian1d(Observer):
     def __str__(self):
         return f"gaussian{self.out_dim}.{self.sigma}"
 
+
 class ObserverPassthrough(Observer):
     def __init__(self, in_dim):
+        super(ObserverPassthrough, self).__init__()
         self._in_dim = in_dim
         self._out_dim = in_dim
 

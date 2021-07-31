@@ -1,20 +1,30 @@
 import math
 
 import torch
-import torch.nn as nn
+from torch import nn
 from scipy.io import loadmat
 import scipy.stats
 import numpy as np
 
 
-def dfunc_dsquared(dists, decay=1):
-    out = [1 / ((d * decay) ** 2) for d in dists]
-    return out
-
-
 def array_weights(
-    in_dim, out_dim, distance_func=dfunc_dsquared, normalize=False, **dfunckwargs
+    in_dim, out_dim, distance_func, normalize=False, **dfunckwargs
 ):
+    """
+    Returns a matrix used for applying a convolution which represents some sort
+    of weighted averaged based on distance. This is used for both observation
+    functions and stimulation functions.
+
+    For example, we may have virtual "electrodes" which measure neural activity
+    of the neurons in some "area".  The location of the electrode is treated as
+    a point on a single spatial dimension, whose cardinality is given by in_dim.
+    A Gaussian or other function is applied at the location of every such
+    electrode, zero padded, to calculate a weighted average measurement for it.
+    The matrix returned by this function calculates the values for every such
+    electrode, given the neural activity vector.
+
+    Thus: the return value is a matrix (out_dim, in_dim)
+    """
     if out_dim >= in_dim and out_dim > 1:
         raise ValueError(
             "Input dimension (%d) must exceed output dimension "
@@ -46,6 +56,7 @@ def gaussian_array_weights(in_dim, out_dim, sigma, normalize=False):
 
 def alpha(gmax, t, tau=5, onset=0, time_scalar=1):
     """
+    Implementation of the alpha function.
     Inspired by: https://www.sas.upenn.edu/LabManuals/BBB251/NIA/NEUROLAB/HELP/alphasyn.htm
 
     gmax: (batch_size, num_stim_channels)
@@ -54,14 +65,6 @@ def alpha(gmax, t, tau=5, onset=0, time_scalar=1):
     v = gmax * time_scalar * (t - onset) / tau
     v *= np.exp(-1 * time_scalar * (t - onset - tau) / tau)
     return v
-
-
-def hash_model_data_name(
-    activation, input_name, fr_weight, io_weight, sparsity, repetition
-):
-    return "-".join(
-        [activation, input_name, fr_weight, io_weight, sparsity, repetition]
-    )
 
 
 def fill_jagged_array(x):
@@ -77,6 +80,11 @@ def fill_jagged_array(x):
 def init_from_michaels_model(
     init_data_path, num_input_features, num_neurons_per_module, output_dim
 ):
+    """
+    Loads parameters for a modular RNN and returns weight matrices and
+    a Linear model. These can be used to instantiate an mRNN.MichaelsRNN
+    """
+
     data = loadmat(init_data_path)
     data = {k: v for k, v in data.items() if "__" not in k}
 
@@ -89,7 +97,6 @@ def init_from_michaels_model(
 
     I = torch.tensor(I.copy()).float()
     S = torch.tensor(S.copy()).float()
-    num_neurons = I.shape[0]
 
     B = data["bx"]
     B = torch.tensor(B.copy()).float()
@@ -119,50 +126,11 @@ class ReTanh(nn.Module):
 
 class NonAct(nn.Module):
     """
-    ReTanh activation function
+    A passthrough/no-op activation function
     """
 
     def forward(self, x):
         return x
-
-
-class LSTMModelSimple(nn.Module):
-    def __init__(self, in_dim, out_dim, num_neurons=None, activation_func=ReTanh):
-        super(LSTMModel, self).__init__()
-
-        if num_neurons is None:
-            num_neurons = max(input_dim, out_dim) + 10
-
-        self.in_dim = in_dim
-        self.num_neurons = num_neurons
-        self.lstm = nn.LSTM(in_dim, num_neurons, batch_first=True)
-        self.fc(num_neurons, out_dim)
-        self.activation_func_t = activation_func
-        self.activation_func = activation_func()
-
-        self.lstm_hidden = None
-
-    def reset(self):
-        self.lstm_hidden = None
-
-    def forward(self, din):
-        """
-        din is (batch_size, input_dim)
-        """
-
-        if self.lstm_hidden is None:
-            lstm_out, lstm_hidden = self.lstm(
-                din.reshape(din.shape[0], 1, din.shape[1])
-            )
-        else:
-            lstm_out, lstm_hidden = self.lstm(
-                din.reshape(din.shape[0], 1, din.shape[1]), self.lstm_hidden
-            )
-
-        self.lstm_hidden = lstm_hidden
-        activation = self.activation_func(lstm_out)
-        readout = self.fc(activation)
-        return readout
 
 
 # Adapted from:
@@ -171,10 +139,26 @@ class LSTMModelSimple(nn.Module):
 #  *tip of the hat*
 # I've unrolled it to keep the interface simple.
 class LSTMModel(nn.Module):
+    """
+    An LSTM implementation that uses only PyTorch primitives, so it's easy to
+    tinker with it later (e.g. in CPNNoiseyLSTMCollection).
+    """
+
     def __init__(
-        self, in_dim, out_dim, num_neurons=None, activation_func=torch.nn.Tanh,
-        cuda=None
+        self,
+        in_dim,
+        out_dim,
+        num_neurons=None,
+        activation_func=torch.nn.Tanh,
+        cuda=None,
     ):
+        """
+        Args:
+            num_neurons: if None, is set to out_dim
+            cuda: something that can be passed nn.Module.cuda
+            activation_func: should be the class, not an instance. e.g. give
+                             torch.nn.Tanh
+        """
         super().__init__()
 
         if num_neurons is None:
@@ -249,8 +233,13 @@ class LSTMModel(nn.Module):
 
         return out
 
+
 def trunc_to_trial_end(data, trial_end):
+    """
+    Truncates data to its trial end indicator. See mRNN.MichaelsDataset
+    """
     return data * trial_end
+
 
 def loss_regressed(data, window_start=7, window_size=40):
     end = len(data)
