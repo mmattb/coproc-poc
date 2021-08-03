@@ -1,12 +1,19 @@
+import enum
+
 import random
+
 import torch
 
-MODULES = ["M1", "F5", "AIP"]
+
+class LesionModule(enum.Enum):
+    M1 = 0
+    F5 = 1
+    AIP = 2
 
 
 def module_id_to_idxs(num_neurons_per_module, module_id):
     if isinstance(module_id, str):
-        mid = MODULES.index(module_id)
+        mid = LesionModule[module_id].value
     elif not isinstance(module_id, int):
         raise TypeError("module_id must be an integer index")
 
@@ -95,3 +102,9 @@ class LesionConnectionsByIdxs(Lesion):
 
     def __str__(self):
         return f"connectionsIdxs{self.idxs}"
+
+
+class LesionType(enum.Enum):
+    outputs = LesionOutputs
+    connection = LesionConnectionsByIdxs
+    none = None

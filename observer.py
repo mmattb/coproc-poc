@@ -1,3 +1,5 @@
+import enum
+
 import torch
 
 from utils import gaussian_array_weights
@@ -69,3 +71,8 @@ class ObserverPassthrough(Observer):
 
     def __str__(self):
         return "passthrough"
+
+class ObserverType(enum.Enum):
+    gaussian = ObserverGaussian1d
+    passthrough = ObserverPassthrough
+

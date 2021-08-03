@@ -1,3 +1,4 @@
+import uuid
 
 import numpy as np
 import torch
@@ -53,6 +54,13 @@ class CPNModel(nn.Module):
         #  the optimizer/thing we are learning isn't this
         #  network, but we are using this network.
         self._opt = torch.optim.SGD(self.parameters(), lr=1e-3)
+
+        self._uuid = uuid.uuid1()
+
+
+    @property
+    def uuid(self):
+        return self._uuid.hex
 
     def reset(self):
         self.x = None
@@ -246,7 +254,14 @@ class CPNNoiseyCollection(nn.Module):
 
 
 class CPNModelLSTM(utils.LSTMModel):
-    pass
+    def __init__(self, *args, **kwargs):
+        super(CPNModelLSTM, self).__init__(*args, **kwargs)
+
+        self._uuid = uuid.uuid1()
+
+    @property
+    def uuid(self):
+        return self._uuid.hex
 
 
 class CPNNoiseyLSTMCollection(nn.Module):
@@ -286,7 +301,7 @@ class CPNNoiseyLSTMCollection(nn.Module):
         self.fc_w = None
         self.fc_b = None
 
-        self._opt = none
+        self._opt = None
 
     def reset(self):
         self.ht = None

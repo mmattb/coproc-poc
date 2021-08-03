@@ -1,3 +1,4 @@
+import json
 import math
 
 import torch
@@ -261,3 +262,11 @@ def loss_regressed(data, window_start=7, window_size=40):
         return True
 
     return False
+
+
+def write_train_logs(out_path, **kwargs):
+    with open(out_path, 'w') as f:
+        for name, values in kwargs.items():
+            f.write(f"*** {name}:\n")
+            f.write(json.dumps(values))
+            f.write("\n")

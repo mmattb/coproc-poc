@@ -1,3 +1,5 @@
+import enum
+
 import numpy as np
 from scipy.stats import norm
 import torch
@@ -275,3 +277,10 @@ class StimulusGaussianExp(Stimulus):
 
     def __str__(self):
         return f"gaussianExp{self.num_stim_channels}.{self._sigma}"
+
+
+class StimulationType(enum.Enum):
+    one_to_one = Stimulus1to1
+    gaussian_alpha = StimulusGaussian
+    gaussian_exp = StimulusGaussianExp
+
