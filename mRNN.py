@@ -402,10 +402,12 @@ class MichaelsDataset(Dataset):
         if trial_info is None:
             return din, trial_end, trial_len, dout
 
-        raw = trial_info[idx][0]
-        norm = (raw // 10) - 2
-        if norm == 7:
-            norm = 6
+        norm = trial_info[idx][0]
+        if norm > 80:
+            norm -= 10
+        norm -= 21
+        fact = norm // 10
+        norm = fact * 6 + norm % 10
         label = torch.tensor(norm)
 
         if cuda is not None:
