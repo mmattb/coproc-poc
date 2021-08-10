@@ -36,6 +36,7 @@ class MichaelsRNN(nn.Module):
         stimulus=None,
         lesion=None,
         init_data_path=None,
+        cuda=None
     ):
 
         super(MichaelsRNN, self).__init__()
@@ -50,6 +51,7 @@ class MichaelsRNN(nn.Module):
         self.synaptic_scaling_factor = synaptic_scaling_factor
         self.activation_func = activation_func()
         self.output_dim = output_dim
+        self._cuda = cuda
 
         npm = self.num_neurons_per_module
         numn = self.num_neurons
@@ -190,20 +192,34 @@ class MichaelsRNN(nn.Module):
 
         self.reset_hidden()
 
+        if cuda is not None:
+            self.cuda(cuda)
+
     def recalc_masks_from_weights(self):
         npm = self.num_neurons_per_module
-        J_zero_grad_mask = np.zeros((self.num_neurons, self.num_neurons))
+        J_zero_grad_mask = torch.zeros(self.num_neurons, self.num_neurons)
         J_zero_grad_mask[self.J != 0.0] = 1.0
         J_zero_grad_mask[:npm, :npm] = 1.0
         J_zero_grad_mask[npm : npm * 2, npm : npm * 2] = 1.0
         J_zero_grad_mask[npm * 2 : npm * 3, npm * 2 : npm * 3] = 1.0
-        J_zero_grad_mask = torch.tensor(J_zero_grad_mask, requires_grad=False).float()
         self.J_zero_grad_mask = J_zero_grad_mask
 
-        I_zero_grad_mask = np.zeros((self.num_neurons, self.num_input_features))
+        I_zero_grad_mask = torch.zeros(self.num_neurons, self.num_input_features)
         I_zero_grad_mask[npm:, :] = 1.0
-        I_zero_grad_mask = torch.tensor(I_zero_grad_mask, requires_grad=False).float()
         self.I_zero_grad_mask = I_zero_grad_mask
+
+        self.I_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_input_features)
+        self.I_coadap_zero_grad_mask[:npm, :] = 1.0
+
+        self.J_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_neurons)
+        self.J_coadap_zero_grad_mask[:npm, :npm] = 1.0
+
+
+        if self._cuda is not None:
+            self.J_zero_grad_mask = self.J_zero_grad_mask.cuda(self._cuda)
+            self.I_zero_grad_mask = self.I_zero_grad_mask.cuda(self._cuda)
+            self.I_coadap_zero_grad_mask = self.I_coadap_zero_grad_mask.cuda(self._cuda)
+            self.J_coadap_zero_grad_mask = self.J_coadap_zero_grad_mask.cuda(self._cuda)
 
     def load_weights_from_file(self, data_path):
         self.load_state_dict(torch.load(data_path))
@@ -231,6 +247,10 @@ class MichaelsRNN(nn.Module):
     def set_sparse_grads(self):
         self.J.grad *= self.J_zero_grad_mask
         self.I.grad *= self.I_zero_grad_mask
+
+    def set_coadap_grads(self):
+        self.J.grad *= self.J_coadap_zero_grad_mask
+        self.I.grad *= self.I_coadap_zero_grad_mask
 
     def set_lesion(self, lesion):
         """

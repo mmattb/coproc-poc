@@ -265,10 +265,11 @@ class StimulusGaussianExp(Stimulus):
         self._vals[:, : self.num_neurons] += new_stim[:, :, 0]
 
     def get_next(self):
-        stim_out = self._vals.clone()
-
         if self._retain_grad:
+            stim_out = self._vals.clone()
             stim_out.retain_grad = True
+        else:
+            stim_out = self._vals.detach().clone()
 
         # Update vals according to an exponential decay
         self._vals -= self._vals * self._decay
