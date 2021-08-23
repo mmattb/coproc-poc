@@ -196,6 +196,19 @@ class LSTMModel(nn.Module):
         for weight in self.parameters():
             weight.data.uniform_(-stdv, stdv)
 
+    def detach_inplace(self):
+        for p in self.parameters():
+            p.detach_()
+
+        if self.ht is not None:
+            self.ht.detach_()
+
+        if self.ct is not None:
+            self.ct.detach_()
+
+        for p in self.fc.parameters():
+            p.detach_()
+
     def reset(self):
         self.ht = None
         self.ct = None
