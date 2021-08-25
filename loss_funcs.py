@@ -102,8 +102,9 @@ class LossHistory:
         task_val_loss=None,
     ):
 
-        if len(self._recs) >= 2 and self._recs[-1].pred_val_loss is None:
+        if len(self._recs) >= 2 and self._recs[-1].pred_val_loss is float('nan'):
             self._recs[-1].pred_val_loss = self._recs[-2].pred_val_loss
+        if len(self._recs) >= 2 and self._recs[-1].task_val_loss is float('nan'):
             self._recs[-1].task_val_loss = self._recs[-2].task_val_loss
 
         if pred_val_loss is None:
@@ -149,14 +150,19 @@ class LossHistory:
             raise ValueError(
                 "Can only accumulate validation results on an existing loss"
             )
-        pred_val_loss = calc_pred_loss(actuals, preds, dout)
-        task_val_loss = calc_task_loss(actuals, preds, dout)
 
-        self._last_pred_val_loss = pred_val_loss
-        self._last_task_val_loss = task_val_loss
+        prev_rec = self._recs[-1]
 
-        self._recs[-1].pred_val_loss = pred_val_loss.item()
-        self._recs[-1].task_val_loss = task_val_loss.item()
+        if prev_rec.type in (LossRecType.EN, LossRecType.CPN_AND_EN):
+            pred_val_loss = calc_pred_loss(actuals, preds, dout)
+            self._last_pred_val_loss = pred_val_loss
+            prev_rec.pred_val_loss = pred_val_loss.item()
+
+
+        if prev_rec.type in (LossRecType.CPN, LossRecType.CPN_AND_EN):
+            task_val_loss = calc_task_loss(actuals, preds, dout)
+            self._last_task_val_loss = task_val_loss
+            self._recs[-1].task_val_loss = task_val_loss.item()
 
     def get_recent(self):
         if self.eidx != 0:
