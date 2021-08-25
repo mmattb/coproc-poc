@@ -118,7 +118,9 @@ def train_loop(
     return actuals, preds, stims
 
 
-def train_new_en(mike, observer, cpn, data_loader, loss_history, cuda=None):
+def train_new_en(
+    mike, observer, cpn, data_loader, loss_history, en_num_neurons=None, cuda=None
+):
     """
     mike: a Michaels modular RNN (a torch Module)
     observer: and observer.Observer. Used to observe mike's activity.
@@ -138,7 +140,7 @@ def train_new_en(mike, observer, cpn, data_loader, loss_history, cuda=None):
     en = stim_model.StimModelLSTM(
         en_in_dim,
         mike.output_dim,
-        num_neurons=en_in_dim + 50,
+        num_neurons=en_num_neurons or en_in_dim + 50,
         activation_func=torch.nn.Tanh,
         cuda=cuda,
     )
