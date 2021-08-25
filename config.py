@@ -1,4 +1,11 @@
 import enum
+import logging
+import sys
+
+LOG_FORMAT = "%(asctime)s %(message)s"
+LOG_DATEFMT = "%H:%M:%S"
+logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATEFMT)
+
 
 import torch
 import torch.nn
@@ -94,16 +101,24 @@ def get(
     cpn_activation = cpn_activation_type.value
 
     run_type_str = "_".join(
-        [str(observer_instance), str(lesion_instance), str(stimulus),
-        f"enAct{en_activation_type.name}", f"cpnAct{cpn_activation_type.name}"]
+        [
+            str(observer_instance),
+            str(lesion_instance),
+            str(stimulus),
+            f"enAct{en_activation_type.name}",
+            f"cpnAct{cpn_activation_type.name}",
+        ]
     )
 
     run_type_str_short = "_".join(
-        [f"obs{observer_type.name}{obs_out_dim}",
-         f"lesion{lesion_type.name}", 
-         f"stim{stimulation_type.name}{num_stim_channels}",
-         f"enAct{en_activation_type.name}",
-         f"cpnAct{cpn_activation_type.name}"])
+        [
+            f"obs{observer_type.name}{obs_out_dim}",
+            f"lesion{lesion_type.name}",
+            f"stim{stimulation_type.name}{num_stim_channels}",
+            f"enAct{en_activation_type.name}",
+            f"cpnAct{cpn_activation_type.name}",
+        ]
+    )
 
     return (
         observer_instance,

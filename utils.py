@@ -8,9 +8,7 @@ import scipy.stats
 import numpy as np
 
 
-def array_weights(
-    in_dim, out_dim, distance_func, normalize=False, **dfunckwargs
-):
+def array_weights(in_dim, out_dim, distance_func, normalize=False, **dfunckwargs):
     """
     Returns a matrix used for applying a convolution which represents some sort
     of weighted averaged based on distance. This is used for both observation
@@ -275,11 +273,3 @@ def loss_regressed(data, window_start=7, window_size=40):
         return True
 
     return False
-
-
-def write_train_logs(out_path, **kwargs):
-    with open(out_path, 'w') as f:
-        for name, values in kwargs.items():
-            f.write(f"*** {name}:\n")
-            f.write(json.dumps(values))
-            f.write("\n")
