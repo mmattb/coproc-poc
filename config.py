@@ -3,7 +3,7 @@ import logging
 import sys
 
 LOG_FORMAT = "%(asctime)s %(message)s"
-LOG_DATEFMT = "%H:%M:%S"
+LOG_DATEFMT = "%m-%d %H:%M:%S"
 logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATEFMT)
 
 

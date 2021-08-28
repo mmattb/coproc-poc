@@ -7,6 +7,11 @@ import torch.nn
 _G_MSELOSS = torch.nn.MSELoss()
 
 LOSS_RENDER_FMT = "%0.6f"
+def _render_none_or_float(val, fmt=LOSS_RENDER_FMT):
+    if val is None:
+        return "-"
+    else:
+        return fmt % val
 
 
 def calc_pred_loss(actuals, preds, targets):
@@ -55,7 +60,7 @@ class LossHistory:
         self._last_pred_val_loss = None
         self._last_task_val_loss = None
 
-        self._max_pct_recov = -10000
+        self._max_pct_recov = 0
 
     def calc_pct_recov(self, task_loss):
         dh = task_loss.item() - self.healthy_loss
@@ -67,12 +72,12 @@ class LossHistory:
         rec_rendered = {
             "eidx": rec.eidx,
             "type": rec.type.name,
-            "pred_loss": LOSS_RENDER_FMT % rec.pred_loss,
-            "task_loss": LOSS_RENDER_FMT % rec.task_loss,
+            "pred_loss": _render_none_or_float(rec.pred_loss),
+            "task_loss": _render_none_or_float(rec.task_loss),
             "train_loss": LOSS_RENDER_FMT % rec.train_loss,
             "pred_val_loss": LOSS_RENDER_FMT % rec.pred_val_loss,
             "task_val_loss": LOSS_RENDER_FMT % rec.task_val_loss,
-            "pct_recov": LOSS_RENDER_FMT % rec.pct_recov,
+            "pct_recov": _render_none_or_float(rec.pct_recov, fmt="%0.3f"),
         }
         return rec_rendered
 
@@ -117,30 +122,51 @@ class LossHistory:
         else:
             task_val_loss = task_val_loss.item()
 
-        self._last_pred_loss = pred_loss
-        self._last_task_loss = task_loss
         self._last_train_loss = train_loss
 
-        pct_recov = self.calc_pct_recov(task_loss)
-        if epoch_type != LossRecType.EN and pct_recov > self._max_pct_recov:
-            self._max_pct_recov = pct_recov
 
         rec = LossRec(
             self.eidx,
             epoch_type,
-            pred_loss.item(),
-            task_loss.item(),
+            None,
+            None,
             train_loss.item(),
             pred_val_loss,
             task_val_loss,
-            pct_recov,
+            None,
         )
+
+        if epoch_type in (LossRecType.EN, LossRecType.CPN_AND_EN):
+            rec.pred_loss = pred_loss.item()
+            self._last_pred_loss = pred_loss
+        elif len(self._recs) > 0:
+            rec.pred_loss = self._recs[-1].pred_loss
+
+        if epoch_type in (LossRecType.CPN, LossRecType.CPN_AND_EN):
+            rec.task_loss = task_loss.item()
+            self._last_task_loss = task_loss
+            pct_recov = self.calc_pct_recov(task_loss)
+            if pct_recov > self._max_pct_recov:
+                self._max_pct_recov = pct_recov
+            rec.pct_recov = pct_recov
+        elif len(self._recs) > 0:
+            rec.task_loss = self._recs[-1].task_loss
+            rec.pct_recov = self._recs[-1].pct_recov
+
         self._recs.append(rec)
         self.eidx += 1
 
     def report_by_result(self, epoch_type, actuals, preds, dout):
-        pred_loss = calc_pred_loss(actuals, preds, dout)
-        task_loss = calc_task_loss(actuals, preds, dout)
+        if epoch_type in (LossRecType.EN, LossRecType.CPN_AND_EN):
+            pred_loss = calc_pred_loss(actuals, preds, dout)
+        else:
+            pred_loss = None
+
+        if epoch_type in (LossRecType.CPN, LossRecType.CPN_AND_EN):
+            task_loss = calc_task_loss(actuals, preds, dout)
+        else:
+            task_loss = None
+
         train_loss = calc_train_task_loss(actuals, preds, dout)
 
         self.report(epoch_type, pred_loss, task_loss, train_loss)

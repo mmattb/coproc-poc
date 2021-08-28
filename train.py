@@ -140,13 +140,10 @@ def train_new_en(
     en = stim_model.StimModelLSTM(
         en_in_dim,
         mike.output_dim,
-        num_neurons=en_num_neurons or en_in_dim + 50,
+        num_neurons=en_num_neurons or (en_in_dim + 50),
         activation_func=torch.nn.Tanh,
         cuda=cuda,
     )
-
-    if cuda is not None:
-        en.cuda(cuda)
 
     RECENT_EN = en
     vl = torch.tensor(1.0)
@@ -161,6 +158,16 @@ def train_new_en(
             batch_size = din.shape[0]
             opt_en.zero_grad()
 
+            remaining_loss = loss_history.recent_task_loss
+            if remaining_loss is None:
+                # Just some high-ish number for the first time
+                # through this function.
+                remaining_loss = 0.05
+            else:
+                remaining_loss = remaining_loss.item()
+
+
+            # Silly lr schedule; basically works
             for p in opt_en.param_groups:
                 if vl.item() < 0.0007:
                     p["lr"] = 1e-4
@@ -169,14 +176,7 @@ def train_new_en(
                 else:
                     p["lr"] = 4e-3
 
-            remaining_loss = loss_history.recent_task_loss
-            if remaining_loss is None:
-                # Just some high-ish number for the first time
-                # through this function.
-                remaining_loss = 0.02
-            else:
-                remaining_loss = remaining_loss.item()
-
+            cpn.reset()
             cpn_noise = cpn_model.CPNNoiseyLSTMCollection(
                 cpn,
                 noise_var=2 * remaining_loss,
@@ -185,10 +185,6 @@ def train_new_en(
                 cuda=cuda,
             )
             cpn_noise.setup(batch_size)
-
-            # Just in case...
-            for param in mike.parameters():
-                param.requires_grad = False
 
             train_loop(
                 cpn_noise,
@@ -242,9 +238,6 @@ def train_new_en(
                     num_neurons=en.num_neurons,
                     activation_func=en.activation_func_t,
                 )
-
-                if cuda is not None:
-                    en.cuda(cuda)
 
                 RECENT_EN = en
                 opt_en = AdamW(en.parameters(), lr=1e-3, weight_decay=0.04)
