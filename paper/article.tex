@@ -1,0 +1,122 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    INSTITUTE OF PHYSICS PUBLISHING                                   %
+%                                                                      %
+%   `Preparing an article for publication in an Institute of Physics   %
+%    Publishing journal using LaTeX'                                   %
+%                                                                      %
+%    LaTeX source code `ioplau2e.tex' used to generate `author         %
+%    guidelines', the documentation explaining and demonstrating use   %
+%    of the Institute of Physics Publishing LaTeX preprint files       %
+%    `iopart.cls, iopart12.clo and iopart10.clo'.                      %
+%                                                                      %
+%    `ioplau2e.tex' itself uses LaTeX with `iopart.cls'                %
+%                                                                      %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%
+% First we have a character check
+%
+% ! exclamation mark    " double quote  
+% # hash                ` opening quote (grave)
+% & ampersand           ' closing quote (acute)
+% $ dollar              % percent       
+% ( open parenthesis    ) close paren.  
+% - hyphen              = equals sign
+% | vertical bar        ~ tilde         
+% @ at sign             _ underscore
+% { open curly brace    } close curly   
+% [ open square         ] close square bracket
+% + plus sign           ; semi-colon    
+% * asterisk            : colon
+% < open angle bracket  > close angle   
+% , comma               . full stop
+% ? question mark       / forward slash 
+% \ backslash           ^ circumflex
+%
+% ABCDEFGHIJKLMNOPQRSTUVWXYZ 
+% abcdefghijklmnopqrstuvwxyz 
+% 1234567890
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\documentclass[12pt]{iopart}
+\newcommand{\gguide}{{\it Preparing graphics for IOP Publishing journals}}
+%Uncomment next line if AMS fonts required
+%\usepackage{iopams}
+\begin{document}
+
+\title[Modeling a Neural Co-Processor]
+{Towards a Neural Co-Processor Which Restores Movement After Stroke: Modeling a Proof-of-Concept}
+
+\author{Matthew J Bryan$^{1}$, Linxing Preston Jiang$^{1}$, Rajesh P N Rao$^{1}$}
+
+\address{$^{1}$ Neural Systems Laboratory, Department of Computer
+Science and Engineering, University of Washington, Box 352350,
+Seattle, WA 98105, USA}
+
+\ead{matthew.bryan@dell.com}
+\vspace{10pt}
+\begin{indented}
+\item[]September 2021
+\end{indented}
+
+\begin{abstract}
+Brain co-processors\cite{rao.coproc} are devices which use artificial intelligence (AI) and closed-loop
+neurostimulation to shape neural activity and to bridge injured neural circuits for
+targeted repair and rehabilitation.
+\end{abstract}
+
+\vspace{2pc}
+\noindent{\it Keywords}: brain-computer interface, neural co-processor, ai, machine learning, stimulation
+%
+% Uncomment for Submitted to journal title message
+%\submitto{\JPA}
+%
+% Uncomment if a separate title page is required
+\maketitle
+% 
+% For two-column output uncomment the next line and choose [10pt] rather than [12pt] in the \documentclass declaration
+%\ioptwocol
+%
+
+
+
+\section{Introduction}
+
+
+Closed-loop control:
+\begin{itemize}
+	\item \cite{walker.inception} Inception Loops: driving brain states
+	\item \cite{kahana.biomarker} “Closed loop” here refers to when to apply stimulation, always of the same type and at the same site, based on memory performance.
+	\item \cite{tafazoli.acls} ACLS
+\end{itemize}
+
+
+Simulation:
+\begin{itemize}
+	\item \cite{bernal.sim} Simulation of spiking neural network, learning stimulation regime
+\end{itemize}
+
+\section{Method}
+asdf
+
+\section{Results}
+asdf
+
+\section{Discussion}
+asdf
+
+\section{Conclusion}
+asdf
+
+\section{Acknowledgements}
+asdf
+
+\section{Ethical Statement}
+asdf
+
+\section{References}
+\bibliographystyle{iopart-num}
+\bibliography{refs}
+\end{document}
+
