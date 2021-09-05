@@ -1,12 +1,7 @@
-import enum
 import logging
-import sys
+import typing
 
-LOG_FORMAT = "%(asctime)s %(message)s"
-LOG_DATEFMT = "%m-%d %H:%M:%S"
-logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATEFMT)
-
-
+import attr
 import torch
 import torch.nn
 
@@ -14,32 +9,79 @@ import activation
 import lesion
 import observer
 import stim
-import utils
+
+
+LOG_FORMAT = "%(asctime)s %(message)s"
+LOG_DATEFMT = "%m-%d %H:%M:%S"
+logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATEFMT)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class Config:
+    observer_instance: observer.Observer
+    stim_instance: stim.Stimulus
+    lesion_instance: lesion.Lesion
+    en_activation: torch.nn.Module
+    cpn_activation: torch.nn.Module
+    cfg_str: str
+    cfg_str_short: str
+    out_dim: int
+    cuda: typing.Any
+
+    def unpack(self):
+        # 3x due to 3 modules in the mRNN
+        # +1 for trial_end
+        return (
+            3 * self.observer_instance.out_dim + 1,
+            self.stim_instance.out_dim,
+            self.out_dim,
+            self.cuda,
+        )
+
 
 DEFAULT_OBSERVER_TYPE = observer.ObserverType.gaussian
 DEFAULT_STIMULATION_TYPE = stim.StimulationType.gaussian_exp
 DEFAULT_LESION_TYPE = lesion.LesionType.connection
-DEFAULT_LESION_MODULE_ID = lesion.LesionModule.M1
-DEFAULT_LESION_PCT = 1.0
+DEFAULT_LESION_ARGS = (
+    [
+        # No F5->M1
+        (1, 2, 0, 1),
+        # No M1->F5
+        (0, 1, 1, 2),
+    ],
+)
 DEFAULT_ACTIVATION_TYPE = activation.ActivationType.Tanh
 DEFAULT_NUM_NEURONS_PER_MODULE = 100
-DEFAULT_BATCH_SIZE = 64
+DEFAULT_OBS_OUT_DIM = 20
+DEFAULT_OBS_SIGMA = 1.75
+DEFAULT_NUM_STIM_CHANNELS = 16
+DEFAULT_STIM_SIGMA = 2.175
+DEFAULT_OUT_DIM = 50
 
+
+# TODO: At some point cfg should be kept in e.g. JSON, and
+#  we should provide an interface to pass a path in. Also:
+#  a path to tweak these.
+
+
+def get_default(cuda=None):
+    cfg = get(cuda=cuda)
+    return cfg
 
 def get(
     observer_type=DEFAULT_OBSERVER_TYPE,
     stimulation_type=DEFAULT_STIMULATION_TYPE,
     lesion_type=DEFAULT_LESION_TYPE,
-    lesion_args=(DEFAULT_LESION_MODULE_ID, DEFAULT_LESION_PCT),
+    lesion_args=DEFAULT_LESION_ARGS,
     en_activation_type=DEFAULT_ACTIVATION_TYPE,
     cpn_activation_type=DEFAULT_ACTIVATION_TYPE,
     num_neurons_per_module=DEFAULT_NUM_NEURONS_PER_MODULE,
-    batch_size=DEFAULT_BATCH_SIZE,
-    num_stim_channels=35,
-    stim_sigma=1,
+    num_stim_channels=DEFAULT_NUM_STIM_CHANNELS,
+    stim_sigma=DEFAULT_STIM_SIGMA,
     stim_retain_grad=False,
-    obs_out_dim=20,
-    obs_sigma=1.75,
+    obs_out_dim=DEFAULT_OBS_OUT_DIM,
+    obs_sigma=DEFAULT_OBS_SIGMA,
+    out_dim=DEFAULT_OUT_DIM,
     cuda=None,
 ):
 
@@ -71,7 +113,7 @@ def get(
         stimulus = stimulation_type.value(
             num_stim_channels,
             num_neurons_per_module,
-            batch_size=batch_size,
+            batch_size=1,  # Will be reset before use
             sigma=stim_sigma,
             retain_grad=stim_retain_grad,
             cuda=cuda,
@@ -100,7 +142,7 @@ def get(
     en_activation = en_activation_type.value
     cpn_activation = cpn_activation_type.value
 
-    run_type_str = "_".join(
+    cfg_str = "_".join(
         [
             str(observer_instance),
             str(lesion_instance),
@@ -110,7 +152,7 @@ def get(
         ]
     )
 
-    run_type_str_short = "_".join(
+    cfg_str_short = "_".join(
         [
             f"obs{observer_type.name}{obs_out_dim}",
             f"lesion{lesion_type.name}",
@@ -120,13 +162,15 @@ def get(
         ]
     )
 
-    return (
+    cfg_out = Config(
         observer_instance,
         stimulus,
         lesion_instance,
         en_activation,
         cpn_activation,
-        run_type_str,
-        run_type_str_short,
-        batch_size,
+        cfg_str,
+        cfg_str_short,
+        out_dim,
+        cuda,
     )
+    return cfg_out

@@ -17,7 +17,7 @@ class Stimulus(object):
         self._batch_size = batch_size
 
     @property
-    def num_stim_channels(self):
+    def out_dim(self):
         return self._num_stim_channels
 
     @property
@@ -169,7 +169,7 @@ class StimulusGaussian(Stimulus1to1):
         return torch.tensor(wout)
 
     def __str__(self):
-        return f"gaussian{self.num_stim_channels}.{self._sigma}"
+        return f"gaussian{self.out_dim}.{self._sigma}"
 
 
 class StimulusGaussianExp(Stimulus):
@@ -277,7 +277,7 @@ class StimulusGaussianExp(Stimulus):
         return stim_out
 
     def __str__(self):
-        return f"gaussianExp{self.num_stim_channels}.{self._sigma}"
+        return f"gaussianExp{self.out_dim}.{self._sigma}"
 
 
 class StimulationType(enum.Enum):
