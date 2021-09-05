@@ -88,6 +88,7 @@ def train_loop(
     din,
     dout,
     trial_end,
+    labels,
     observer,
     loss_history,
     epoch_type,
@@ -113,13 +114,14 @@ def train_loop(
     if is_val:
         loss_history.report_val_last_result(actuals, preds, dout)
     else:
-        loss_history.report_by_result(epoch_type, actuals, preds, dout)
+        loss_history.report_by_result(epoch_type, actuals, preds, dout, labels)
 
     return actuals, preds, stims
 
 
-def train_new_en(
-    mike, observer, cpn, data_loader, loss_history, en_num_neurons=None, cuda=None
+def train_en(
+    mike, observer, cpn, data_loader, loss_history, en=None, opt_en=None,
+    en_num_neurons=None, cuda=None
 ):
     """
     mike: a Michaels modular RNN (a torch Module)
@@ -137,28 +139,33 @@ def train_new_en(
     # Stim: mike.stimulus.num_stim_channels
     # +1 for trial_end
     en_in_dim = obs_dim + mike.stimulus.num_stim_channels + 1
-    en = stim_model.StimModelLSTM(
-        en_in_dim,
-        mike.output_dim,
-        num_neurons=en_num_neurons or (en_in_dim + 50),
-        activation_func=torch.nn.Tanh,
-        cuda=cuda,
-    )
+
+    if en is None:
+        en = stim_model.StimModelLSTM(
+            en_in_dim,
+            mike.output_dim,
+            num_neurons=en_num_neurons or (en_in_dim + 50),
+            activation_func=torch.nn.Tanh,
+            cuda=cuda,
+        )
+
+        assert opt_en is None
+
+        opt_en = AdamW(en.parameters(), lr=9e-3, weight_decay=0.04)
 
     RECENT_EN = en
     vl = torch.tensor(1.0)
-    opt_en = AdamW(en.parameters(), lr=9e-3, weight_decay=0.04)
 
     checkpoint_eidx = 0
     eidx = -1
     while True:
         for batch in data_loader:
-            din, trial_end, _, dout = batch
+            din, trial_end, _, dout, labels = batch
             eidx += 1
             batch_size = din.shape[0]
             opt_en.zero_grad()
 
-            remaining_loss = loss_history.recent_task_loss
+            remaining_loss = loss_history.recent_train_loss
             if remaining_loss is None:
                 # Just some high-ish number for the first time
                 # through this function.
@@ -193,6 +200,7 @@ def train_new_en(
                 din,
                 dout,
                 trial_end,
+                labels,
                 observer,
                 loss_history,
                 loss_funcs.LossRecType.EN,
@@ -214,6 +222,7 @@ def train_new_en(
                     din,
                     dout,
                     trial_end,
+                    labels,
                     observer,
                     loss_history,
                     loss_funcs.LossRecType.EN,
@@ -223,7 +232,8 @@ def train_new_en(
                 )
                 vl = loss_history.recent_pred_val_loss
 
-            loss_history.log(logger, "training new en:")
+
+            loss_history.log(logger, "training en:")
 
             if (
                 torch.isnan(vl)
@@ -231,19 +241,19 @@ def train_new_en(
                 or vl.item() > 1.5
                 or (eidx - checkpoint_eidx) > 5000
             ):
-                # Emergency eject button
                 en = stim_model.StimModelLSTM(
                     en.in_dim,
                     en.out_dim,
                     num_neurons=en.num_neurons,
                     activation_func=en.activation_func_t,
+                    cuda=cuda,
                 )
 
                 RECENT_EN = en
                 opt_en = AdamW(en.parameters(), lr=1e-3, weight_decay=0.04)
                 checkpoint_eidx = eidx
 
-            if (vl.item() < max(0.02 * remaining_loss, 0.0003) and eidx > 100) or (
+            if (vl.item() < max(0.02 * remaining_loss, 0.0003) and eidx > 200) or (
                 eidx - checkpoint_eidx
             ) == 2000:
                 done = True
@@ -263,9 +273,7 @@ def refine_en(
     mike,
     en,
     opt_en,
-    din,
-    dout,
-    trial_end,
+    data_loader,
     observer,
     loss_history,
     cuda=None,
@@ -274,24 +282,42 @@ def refine_en(
     for p in opt_en.param_groups:
         p["lr"] = 1e-4
 
+    batch_size = din.shape[0]
+
+    
     while loss_history.recent_pred_loss > max(loss_history.recent_task_loss / 10, 6e-4):
-        opt_en.zero_grad()
-        _ = train_loop(
-            cpn,
-            mike,
-            en,
-            din,
-            dout,
-            trial_end,
-            observer,
-            loss_history,
-            loss_funcs.LossRecType.EN,
-            cuda=cuda,
-        )
+        for batch in data_loader:
+            
+            din, trial_end, _, dout, labels = batch
 
-        pred_loss = loss_history.recent_pred_loss
-        pred_loss.backward(inputs=list(en.parameters()))
+            cpn.reset()
+            cpn_noise = cpn_model.CPNNoiseyLSTMCollection(
+                cpn,
+                noise_var=0.002,
+                white_noise_pct=0.3,
+                white_noise_var=6,
+                cuda=cuda,
+            )
+            cpn_noise.setup(batch_size)
 
-        loss_history.log(logger, "adjusting en:")
+            opt_en.zero_grad()
+            _ = train_loop(
+                cpn,
+                mike,
+                en,
+                din,
+                dout,
+                trial_end,
+                labels,
+                observer,
+                loss_history,
+                loss_funcs.LossRecType.EN,
+                cuda=cuda,
+            )
 
-        opt_en.step()
+            pred_loss = loss_history.recent_pred_loss
+            pred_loss.backward(inputs=list(en.parameters()))
+
+            loss_history.log(logger, "adjusting en:")
+
+            opt_en.step()

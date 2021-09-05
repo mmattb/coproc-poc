@@ -373,7 +373,12 @@ class MichaelsRNN(nn.Module):
 
 
 class MichaelsDataset(Dataset):
-    def __init__(self, data_file_path, with_label=False, limit=None, cuda=None):
+    def __init__(self, data_file_path, with_label=False, limit=None, class_filter=None,
+            cuda=None):
+        """
+        class_filter: optional iterable of class labels to allowlist
+        """
+
         f = michaels_load.load_from_path(data_file_path)
         inps = f["inp"]
         outs = f["targ"]
@@ -391,11 +396,14 @@ class MichaelsDataset(Dataset):
 
         self.with_label = with_label
 
+        self.class_filter = class_filter
+
         self.data = []
-        self._load_data(inps, outs, trial_info=ti, cuda=cuda)
+        self._load_data(inps, outs, trial_info=ti,
+                class_filter=self.class_filter, cuda=cuda)
 
     def __len__(self):
-        return self.num_samples
+        return len(self.data)
 
     def _load_data_single(self, idx, inps, outs, trial_info=None, cuda=None):
         cur_in = inps[idx]
@@ -435,11 +443,15 @@ class MichaelsDataset(Dataset):
 
         return din, trial_end, trial_len, dout, label
 
-    def _load_data(self, inps, outs, trial_info=None, cuda=None):
+    def _load_data(self, inps, outs, trial_info=None, class_filter=None, cuda=None):
+        if trial_info is None and class_filter is not None:
+            raise ValueError("Must provide a trial_info if providing class_filter")
+
         for i in range(self.num_samples):
-            self.data.append(
-                self._load_data_single(i, inps, outs, trial_info=trial_info, cuda=cuda)
-            )
+            datum = self._load_data_single(i, inps, outs, trial_info=trial_info, cuda=cuda)
+
+            if class_filter is None or (datum[-1].item() in class_filter):
+                self.data.append(datum)
 
     def __getitem__(self, idx):
         return self.data[idx]
