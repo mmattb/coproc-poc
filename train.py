@@ -9,7 +9,7 @@ from torch.optim import AdamW
 
 # Local imports
 import cpn_model
-import loss_funcs
+import stats
 import stim_model
 import utils
 
@@ -44,9 +44,6 @@ def unroll(cpn, mike, en, din, trial_end, observer, retain_stim_grads=False, cud
     if cuda is not None:
         preds = preds.cuda(cuda)
         actuals = actuals.cuda(cuda)
-
-    # This is the actual, which EN predicts
-    mike_out = mike(din[:, 0, :].T)
 
     for tidx in range(steps - 1):
         obs = mike.observe(observer)
@@ -129,7 +126,7 @@ def train_en(
     cpn: a CPN network (a torch Module)
     data_loader: a DataLoader which contains the training data we are
                  using.
-    loss_history: a loss_funcs.LossHistory
+    loss_history: a stats.LossHistory
     cuda: something that can be passed to a tensor.cuda()
     """
     # the last EN we were working on training, for debugging
@@ -203,7 +200,7 @@ def train_en(
                 labels,
                 observer,
                 loss_history,
-                loss_funcs.LossRecType.EN,
+                stats.LossRecType.EN,
                 retain_stim_grads=False,
                 cuda=cuda,
             )
@@ -225,7 +222,7 @@ def train_en(
                     labels,
                     observer,
                     loss_history,
-                    loss_funcs.LossRecType.EN,
+                    stats.LossRecType.EN,
                     retain_stim_grads=False,
                     is_val=True,
                     cuda=cuda,
@@ -284,10 +281,9 @@ def refine_en(
 
     batch_size = din.shape[0]
 
-    
     while loss_history.recent_pred_loss > max(loss_history.recent_task_loss / 10, 6e-4):
         for batch in data_loader:
-            
+
             din, trial_end, _, dout, labels = batch
 
             cpn.reset()
@@ -311,7 +307,7 @@ def refine_en(
                 labels,
                 observer,
                 loss_history,
-                loss_funcs.LossRecType.EN,
+                stats.LossRecType.EN,
                 cuda=cuda,
             )
 

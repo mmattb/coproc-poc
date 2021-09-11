@@ -5,7 +5,7 @@ import torch
 import torch.autograd
 from torch import nn
 
-import utils
+from experiment import utils
 
 
 class CPNModel(nn.Module):

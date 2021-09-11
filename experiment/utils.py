@@ -8,6 +8,15 @@ import scipy.stats
 import numpy as np
 
 
+LOSS_RENDER_FMT = "%0.6f"
+def render_none_or_float(val, fmt=LOSS_RENDER_FMT):
+    if val is None or val != val:
+        return "-"
+
+    return fmt % val
+
+
+
 def array_weights(in_dim, out_dim, distance_func, normalize=False, **dfunckwargs):
     """
     Returns a matrix used for applying a convolution which represents some sort

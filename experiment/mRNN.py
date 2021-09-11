@@ -5,8 +5,8 @@ import torch
 from torch import nn
 from torch.utils.data import Dataset
 
-import michaels_load
-import utils
+from . import michaels_load
+from . import utils
 
 
 # Length of real-world time for a given time step, in ms
@@ -342,11 +342,11 @@ class MichaelsRNN(nn.Module):
             out = obs_model(act)
             # aka (batch_size, out_dim)
             assert out.shape == (self.prev_output.shape[0], obs_model.out_dim)
-            outputs.append(out)
+            outputs.append(out.detach())
 
         # 3-tuple, elements are (batch, obs.out_dim)
         # Possibly fewer than 3, if we are dropping modules
-        return outputs
+        return tuple(outputs)
 
     def unroll(self, data_in, cuda=None):
         """

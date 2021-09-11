@@ -2,7 +2,7 @@ import enum
 
 import torch
 
-from utils import gaussian_array_weights
+from .utils import gaussian_array_weights
 
 
 class Observer(object):

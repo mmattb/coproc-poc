@@ -4,7 +4,7 @@ import numpy as np
 from scipy.stats import norm
 import torch
 
-import utils
+from . import utils
 
 
 class Stimulus(object):

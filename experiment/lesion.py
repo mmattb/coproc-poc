@@ -1,6 +1,6 @@
-import enum
-
 import random
+
+import enum
 
 import torch
 

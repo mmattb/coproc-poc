@@ -4,16 +4,19 @@ import typing
 import attr
 import torch
 import torch.nn
+from torch.utils.data import DataLoader
 
-import activation
-import lesion
-import observer
-import stim
+from . import activation
+from . import lesion
+from . import mRNN
+from . import michaels_load
+from . import observer
+from . import stim
 
 
 LOG_FORMAT = "%(asctime)s %(message)s"
 LOG_DATEFMT = "%m-%d %H:%M:%S"
-logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATEFMT)
+logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATEFMT, level=logging.INFO)
 
 
 @attr.s(auto_attribs=True, frozen=True)
@@ -26,17 +29,32 @@ class Config:
     cfg_str: str
     cfg_str_short: str
     out_dim: int
+    dataset: torch.utils.data.Dataset
+    loader_train: torch.utils.data.DataLoader
+    loader_test: torch.utils.data.DataLoader
     cuda: typing.Any
 
     def unpack(self):
         # 3x due to 3 modules in the mRNN
         # +1 for trial_end
         return (
-            3 * self.observer_instance.out_dim + 1,
-            self.stim_instance.out_dim,
+            self.in_dim,
+            self.stim_dim,
             self.out_dim,
             self.cuda,
         )
+
+    @property
+    def stim_dim(self):
+        return self.stim_instance.out_dim
+
+    @property
+    def in_dim(self):
+        return 3 * self.observer_instance.out_dim + 1
+
+    @property
+    def trial_length(self):
+        return self.dataset.sample_len
 
 
 DEFAULT_OBSERVER_TYPE = observer.ObserverType.gaussian
@@ -57,6 +75,45 @@ DEFAULT_OBS_SIGMA = 1.75
 DEFAULT_NUM_STIM_CHANNELS = 16
 DEFAULT_STIM_SIGMA = 2.175
 DEFAULT_OUT_DIM = 50
+DEFAULT_HOLDOUT_PCT = 0.2
+
+
+def get_raw_data(cuda=None, **kwargs):
+    dataset = mRNN.MichaelsDataset(
+        michaels_load.get_default_path(), cuda=cuda, with_label=True, **kwargs
+    )
+    return dataset
+
+
+def _get_dataset(holdout_pct=0.2, cuda=None):
+    dataset = get_raw_data(cuda=cuda)
+
+    probs = torch.ones(len(dataset)) / float(len(dataset))
+    holdout_count = int(len(dataset) * holdout_pct)
+    holdout_idxs = set([p.item() for p in probs.multinomial(num_samples=holdout_count)])
+
+    train = []
+    test = []
+    for idx in range(len(dataset)):
+        if idx in holdout_idxs:
+            test.append(dataset[idx])
+        else:
+            train.append(dataset[idx])
+
+    # We have two loaders, since they maintain a little bit of state,
+    # and we nest EN training inside CPN training
+    loader_train = DataLoader(
+        train,
+        batch_size=len(train),
+        shuffle=True,
+    )
+    loader_test = DataLoader(
+        test,
+        batch_size=len(test),
+        shuffle=True,
+    )
+
+    return dataset, loader_train, loader_test
 
 
 # TODO: At some point cfg should be kept in e.g. JSON, and
@@ -67,6 +124,7 @@ DEFAULT_OUT_DIM = 50
 def get_default(cuda=None):
     cfg = get(cuda=cuda)
     return cfg
+
 
 def get(
     observer_type=DEFAULT_OBSERVER_TYPE,
@@ -82,6 +140,7 @@ def get(
     obs_out_dim=DEFAULT_OBS_OUT_DIM,
     obs_sigma=DEFAULT_OBS_SIGMA,
     out_dim=DEFAULT_OUT_DIM,
+    holdout_pct=DEFAULT_HOLDOUT_PCT,
     cuda=None,
 ):
 
@@ -162,6 +221,10 @@ def get(
         ]
     )
 
+    dataset, loader_train, loader_test = _get_dataset(
+        holdout_pct=holdout_pct, cuda=cuda
+    )
+
     cfg_out = Config(
         observer_instance,
         stimulus,
@@ -171,6 +234,9 @@ def get(
         cfg_str,
         cfg_str_short,
         out_dim,
+        dataset,
+        loader_train,
+        loader_test,
         cuda,
     )
     return cfg_out

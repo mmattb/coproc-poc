@@ -45,4 +45,3 @@ def load(
     network_dir = "-".join([activation_type, input_name, FR, IO, sparsity, repetition])
     network_path = os.path.join(data_folder, os.path.join(network_dir, network_dir))
     return load_from_path(network_path)
-

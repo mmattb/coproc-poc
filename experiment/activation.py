@@ -2,7 +2,7 @@ import enum
 
 import torch
 
-import utils
+from . import utils
 
 
 class ActivationType(enum.Enum):

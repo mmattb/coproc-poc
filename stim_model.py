@@ -2,8 +2,29 @@ import numpy as np
 import torch
 import torch.autograd
 from torch import nn
+from torch.optim import AdamW
 
-import utils
+from experiment import utils
+
+
+def get_stim_model(
+    in_dim, out_dim, num_neurons=None, activation=torch.nn.Tanh, cuda=None
+):
+
+    if num_neurons is None:
+        num_neurons = in_dim + 50
+
+    en = StimModelLSTM(
+        in_dim,
+        out_dim,
+        num_neurons=num_neurons,
+        activation_func=activation,
+        cuda=cuda,
+    )
+
+    opt_en = AdamW(en.parameters(), lr=1e-3, weight_decay=0.04)
+
+    return en, opt_en
 
 
 class StimModel(nn.Module):
