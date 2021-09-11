@@ -48,13 +48,26 @@ class CPN_EN_CoProc(experiment.CoProc):
             self.en, self.opt_en, self.cpn, self.opt_cpn, self.cfg
         )
 
-        self.reset()
+        self.reset_soft()
 
-    def reset(self):
+    def reset_soft(self):
         self.stims = []
         self.en_epoch.reset()
         self.cpn_epoch.reset()
+
+    def reset(self):
         self.cpn_epoch.reset_period()
+        self.epoch_type = EpochType.EN
+
+        self.en, self.opt_en = self.en_epoch.reset_en()
+        self.cpn_epoch.set_en(self.en, self.opt_en)
+
+        for param in self.cpn.parameters():
+            param.requires_grad = False
+        for param in self.en.parameters():
+            param.requires_grad = True
+
+        self.reset_soft()
 
     def forward(self, brain_data, loss_history):
         if self.epoch_type in (EpochType.EN, EpochType.VAL_EN):
@@ -151,5 +164,5 @@ class CPN_EN_CoProc(experiment.CoProc):
             user_data,
         )
 
-        self.reset()
+        self.reset_soft()
         return result

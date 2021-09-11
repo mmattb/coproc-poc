@@ -69,6 +69,12 @@ def get_raw_data(cuda=None, **kwargs):
 
 
 class CoProc:
+    def reset(self):
+        """
+        Called at the start and continuation of a run.
+        """
+        pass
+
     def forward(self, brain_data, loss_history):
         """
         Args:
@@ -272,6 +278,8 @@ class Experiment:
 
     def run(self):
         is_validation = False
+        self.coproc.reset()
+
         while True:
             if is_validation:
 
