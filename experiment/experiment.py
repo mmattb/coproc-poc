@@ -110,12 +110,12 @@ class CoProc:
         pass
 
 
-def stage(coproc, cfg):
-    return Experiment(coproc, cfg)
+def stage(coproc, cfg, recover_after_lesion=False):
+    return Experiment(coproc, cfg, recover_after_lesion=recover_after_lesion)
 
 
 class Experiment:
-    def __init__(self, coproc, cfg):
+    def __init__(self, coproc, cfg, recover_after_lesion=False):
         self._coproc = coproc
 
         self._cfg = cfg
@@ -129,6 +129,12 @@ class Experiment:
 
         self.mike = mike
         self.opt_mike = AdamW(self.mike.parameters(), lr=1e-4)
+
+        # TODO: load from cached recovered model
+        if recover_after_lesion:
+            self._recover_after_lesion()
+            self.opt_mike = AdamW(self.mike.parameters(), lr=1e-4)
+
         for param in self.mike.parameters():
             param.requires_grad = False
 
@@ -139,7 +145,7 @@ class Experiment:
             self.comp_loss_lesioned,
             self.var_whole_healthy,
             self.var_within_healthy,
-        ) = self._get_healthy_vs_lesioned_stats(cuda=cfg.cuda)
+        ) = self._get_healthy_vs_lesioned_stats()
 
         self.loss_history = stats.LossHistory(
             self.comp_loss_lesioned.item(),
@@ -152,7 +158,48 @@ class Experiment:
     def cfg(self):
         return self._cfg
 
-    def _get_healthy_vs_lesioned_stats(self, cuda=None):
+    def _recover_after_lesion(self):
+        """
+        This function can be used to refine a Michaels model, simulating
+        some amount of recovery. In practice, we use a model we've already
+        trained in the same way.
+        """
+        cuda = self.cfg.cuda
+        loss_func = torch.nn.MSELoss()
+
+        dset = self.cfg.dataset
+        dset_size = len(dset)
+        dset_samp_len = dset.sample_len
+        loader = DataLoader(dset, batch_size=dset_size, shuffle=True)
+
+        loss = 1
+        prev_loss = 2
+
+        while loss > 0.0045:
+            for batch in loader:
+                prev_loss = loss
+
+                self.mike.reset()
+                self.opt_mike.zero_grad()
+
+                din, _, _, dout, _ = batch
+
+                preds = torch.zeros((dset_size, dset_samp_len, self.cfg.out_dim))
+                for tidx in range(dout.shape[1]):
+                    cur_din = din[:, tidx, :].T
+                    p = self.mike(cur_din)
+                    preds[:, tidx, :] = p[:, :]
+
+                loss = loss_func(preds, dout)
+                loss.backward()
+                self.mike.set_coadap_grads()
+                self.opt_mike.step()
+
+                g_logger.info("Brain recovery loss: %0.7f", loss.item())
+
+
+    def _get_healthy_vs_lesioned_stats(self):
+        cuda = self.cfg.cuda
         comp_loss = torch.nn.MSELoss()
 
         dset = self.cfg.dataset
