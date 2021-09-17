@@ -17,6 +17,7 @@ class EpochType(enum.Enum):
 
 @attr.s(auto_attribs=True)
 class CPNENStats(stats.UserData):
+    epoch_type: EpochType
     train_loss: float
     train_val_loss: float
     pred_loss: float
@@ -24,6 +25,7 @@ class CPNENStats(stats.UserData):
 
     def render(self):
         return {
+            "epoch_type": self.epoch_type.name,
             "train_loss": render_none_or_float(self.train_loss),
             "pred_loss": render_none_or_float(self.pred_loss),
             "pred_val_loss": render_none_or_float(self.pred_val_loss),

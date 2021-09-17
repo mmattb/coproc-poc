@@ -36,7 +36,7 @@ class MichaelsRNN(nn.Module):
         stimulus=None,
         lesion=None,
         init_data_path=None,
-        cuda=None
+        cuda=None,
     ):
 
         super(MichaelsRNN, self).__init__()
@@ -208,17 +208,12 @@ class MichaelsRNN(nn.Module):
         I_zero_grad_mask[npm:, :] = 1.0
         self.I_zero_grad_mask = I_zero_grad_mask
 
-        self.I_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_input_features)
-        self.I_coadap_zero_grad_mask[:npm, :] = 1.0
-
         self.J_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_neurons)
         self.J_coadap_zero_grad_mask[:npm, :npm] = 1.0
-
 
         if self._cuda is not None:
             self.J_zero_grad_mask = self.J_zero_grad_mask.cuda(self._cuda)
             self.I_zero_grad_mask = self.I_zero_grad_mask.cuda(self._cuda)
-            self.I_coadap_zero_grad_mask = self.I_coadap_zero_grad_mask.cuda(self._cuda)
             self.J_coadap_zero_grad_mask = self.J_coadap_zero_grad_mask.cuda(self._cuda)
 
     def load_weights_from_file(self, data_path):
@@ -250,7 +245,10 @@ class MichaelsRNN(nn.Module):
 
     def set_coadap_grads(self):
         self.J.grad *= self.J_coadap_zero_grad_mask
-        self.I.grad *= self.I_coadap_zero_grad_mask
+        # It seems there is an AdamW bug where these are not always effective...
+        # But let's try.
+        self.I.grad.detach_()
+        self.I.grad.zero_()
 
     def set_lesion(self, lesion):
         """
@@ -373,8 +371,9 @@ class MichaelsRNN(nn.Module):
 
 
 class MichaelsDataset(Dataset):
-    def __init__(self, data_file_path, with_label=False, limit=None, class_filter=None,
-            cuda=None):
+    def __init__(
+        self, data_file_path, with_label=False, limit=None, class_filter=None, cuda=None
+    ):
         """
         class_filter: optional iterable of class labels to allowlist
         """
@@ -399,8 +398,9 @@ class MichaelsDataset(Dataset):
         self.class_filter = class_filter
 
         self.data = []
-        self._load_data(inps, outs, trial_info=ti,
-                class_filter=self.class_filter, cuda=cuda)
+        self._load_data(
+            inps, outs, trial_info=ti, class_filter=self.class_filter, cuda=cuda
+        )
 
     def __len__(self):
         return len(self.data)
@@ -448,7 +448,9 @@ class MichaelsDataset(Dataset):
             raise ValueError("Must provide a trial_info if providing class_filter")
 
         for i in range(self.num_samples):
-            datum = self._load_data_single(i, inps, outs, trial_info=trial_info, cuda=cuda)
+            datum = self._load_data_single(
+                i, inps, outs, trial_info=trial_info, cuda=cuda
+            )
 
             if class_filter is None or (datum[-1].item() in class_filter):
                 self.data.append(datum)
@@ -466,3 +468,60 @@ def load_from_file(data_path, pretrained=False, **kwargs):
             param.requires_grad = False
 
     return mrnn
+
+
+# TODO: refactor
+#def recover(mike, data_loader, cuda=None):
+#    """
+#    This function can be used to refine a Michaels model, simulating
+#    some amount of recovery.
+#    """
+#    loss_func = torch.nn.MSELoss()
+#
+#    dset = self.cfg.dataset
+#    dset_size = len(dset)
+#    dset_samp_len = dset.sample_len
+#    loader = DataLoader(dset, batch_size=dset_size, shuffle=True)
+#
+#    for p in self.mike.parameters():
+#        p.requires_grad = True
+#
+#    opt_mike = AdamW(
+#        [p for p in self.mike.parameters() if p is not self.mike.I], lr=1e-4
+#    )
+#
+#    loss = 1
+#    global mm
+#    mm = self.mike
+#    while loss > 0.0007:
+#        for batch in loader:
+#            if loss >= 0.00385:
+#                for p in opt_mike.param_groups:
+#                    p["lr"] = 1e-4
+#            else:
+#                for p in opt_mike.param_groups:
+#                    p["lr"] = 1e-5
+#
+#            self.mike.reset()
+#            self.opt_mike.zero_grad()
+#
+#            din, _, _, dout, _ = batch
+#
+#            preds = torch.zeros((dset_size, dset_samp_len, self.cfg.out_dim))
+#            if cuda is not None:
+#                preds = preds.cuda(cuda)
+#
+#            for tidx in range(dout.shape[1]):
+#                cur_din = din[:, tidx, :].T
+#                p = self.mike(cur_din)
+#                preds[:, tidx, :] = p[:, :]
+#
+#            loss = loss_func(preds, dout)
+#            loss.backward()
+#            self.mike.set_coadap_grads()
+#            opt_mike.step()
+#
+#            g_logger.info("Brain recovery loss: %0.7f", loss.item())
+#
+#    for p in self.mike.parameters():
+#        p.requires_grad = False

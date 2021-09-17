@@ -1,3 +1,7 @@
+import os
+import json
+import uuid
+
 import torch
 from torch.optim import AdamW
 
@@ -11,7 +15,7 @@ import stim_model
 
 
 class CPN_EN_CoProc(experiment.CoProc):
-    def __init__(self, cfg, retain_stim_grads=False):
+    def __init__(self, cfg, retain_stim_grads=False, log_dir=None):
         self.cfg = cfg
 
         in_dim, stim_dim, out_dim, cuda = cfg.unpack()
@@ -47,6 +51,13 @@ class CPN_EN_CoProc(experiment.CoProc):
         self.cpn_epoch = cpn_epoch_cpn.CPNEpochCPN(
             self.en, self.opt_en, self.cpn, self.opt_cpn, self.cfg
         )
+
+        self.uuid = uuid.uuid4()
+        if log_dir is not None:
+            self.log_dir = os.path.join(log_dir, str(self.uuid))
+            os.makedirs(self.log_dir)
+        else:
+            self.log_dir = None
 
         self.reset_soft()
 
@@ -166,3 +177,18 @@ class CPN_EN_CoProc(experiment.CoProc):
 
         self.reset_soft()
         return result
+
+    def report(self, loss_history):
+        if self.log_dir is not None:
+            if (loss_history.eidx % 50) == 0:
+                log_path = os.path.join(self.log_dir, "log")
+
+                with open(log_path, "w") as f:
+                    json.dump(loss_history.render(), f)
+                    f.flush()
+
+                cpn_path = os.path.join(self.log_dir, "cpn.model")
+                en_path = os.path.join(self.log_dir, "en.model")
+
+                torch.save(self.cpn.state_dict(), cpn_path)
+                torch.save(self.en.state_dict(), en_path)

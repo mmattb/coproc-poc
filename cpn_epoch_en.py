@@ -1,7 +1,7 @@
 import torch
 
 import cpn_model
-from cpn_utils import CPNENStats, calc_pred_loss
+from cpn_utils import CPNENStats, calc_pred_loss, EpochType
 import experiment.utils as utils
 import stim_model
 
@@ -156,6 +156,7 @@ class CPNEpochEN:
 
         user_data = CPNENStats(
             "en",
+            EpochType.EN,
             train_loss_out,
             train_val_loss_out,
             self.recent_pred_loss,

@@ -1,6 +1,6 @@
 import torch
 
-from cpn_utils import CPNENStats, calc_pred_loss, calc_train_loss
+from cpn_utils import CPNENStats, calc_pred_loss, calc_train_loss, EpochType
 import experiment.utils as utils
 
 
@@ -92,7 +92,6 @@ class CPNEpochCPN:
     def finish(self, loss_history, is_validation):
 
         rtl = self.recent_train_loss
-        print("rtl", rtl)
         if rtl is None or rtl >= 0.008:
             for p in self.opt_cpn.param_groups:
                 p["lr"] = 1e-3
@@ -153,6 +152,7 @@ class CPNEpochCPN:
 
         user_data = CPNENStats(
             "cpn",
+            EpochType.CPN,
             self.recent_train_loss,
             self.recent_train_val_loss,
             self.recent_pred_loss,

@@ -4,7 +4,7 @@ import time
 
 import attr
 import torch
-from torch.optim import AdamW
+from torch.optim import AdamW, SGD
 from torch.utils.data import DataLoader
 
 
@@ -32,7 +32,7 @@ class EpochResult:
         return self.stop, self.next_is_validation, self.user_data
 
 
-def get_config(cuda=None):
+def get_config(recover_after_lesion=False, coadapt=False, cuda=None):
     """
     Args:
         - cuda (str, torch.device, or None): None for CPU, or a string like "0" specifying a GPU
@@ -58,7 +58,9 @@ def get_config(cuda=None):
     else:
         cuda_out = cuda
 
-    cfg = config.get_default(cuda=cuda_out)
+    cfg = config.get(
+        recover_after_lesion=recover_after_lesion, coadapt=coadapt, cuda=cuda_out
+    )
 
     return cfg
 
@@ -104,7 +106,7 @@ class CoProc:
         Called between batches. User can add any cleanup logic here, e.g.
         resetting internal state of RNNs.
         Returns:
-            A tuple:
+            A tuple: (
                 True to stop training; False otherwise,
                 True to update task loss log based on this epoch,
                 True if this is a validation epoch; report it as such,
@@ -115,13 +117,21 @@ class CoProc:
         """
         pass
 
+    def report(self, loss_history):
+        """
+        Final chance to report/calc stats, records, logs, etc., after finish.
+        This step is separate from finish(), since the most recent loss history
+        record now holds the user data from finish().
+        """
+        pass
 
-def stage(coproc, cfg, recover_after_lesion=False):
-    return Experiment(coproc, cfg, recover_after_lesion=recover_after_lesion)
+
+def stage(coproc, cfg):
+    return Experiment(coproc, cfg)
 
 
 class Experiment:
-    def __init__(self, coproc, cfg, recover_after_lesion=False):
+    def __init__(self, coproc, cfg):
         self._coproc = coproc
 
         self._cfg = cfg
@@ -135,11 +145,6 @@ class Experiment:
 
         self.mike = mike
         self.opt_mike = AdamW(self.mike.parameters(), lr=1e-4)
-
-        # TODO: load from cached recovered model
-        if recover_after_lesion:
-            self._recover_after_lesion()
-            self.opt_mike = AdamW(self.mike.parameters(), lr=1e-4)
 
         for param in self.mike.parameters():
             param.requires_grad = False
@@ -160,49 +165,14 @@ class Experiment:
             self.var_within_healthy,
         )
 
+        if cfg.recover_after_lesion:
+            model_path = michaels_load.get_path(fname_override="recovered.model")
+            self.mike.load_state_dict(torch.load(model_path))
+            self.opt_mike = AdamW(self.mike.parameters(), lr=1e-4)
+
     @property
     def cfg(self):
         return self._cfg
-
-    def _recover_after_lesion(self):
-        """
-        This function can be used to refine a Michaels model, simulating
-        some amount of recovery. In practice, we use a model we've already
-        trained in the same way.
-        """
-        cuda = self.cfg.cuda
-        loss_func = torch.nn.MSELoss()
-
-        dset = self.cfg.dataset
-        dset_size = len(dset)
-        dset_samp_len = dset.sample_len
-        loader = DataLoader(dset, batch_size=dset_size, shuffle=True)
-
-        loss = 1
-        prev_loss = 2
-
-        while loss > 0.0045:
-            for batch in loader:
-                prev_loss = loss
-
-                self.mike.reset()
-                self.opt_mike.zero_grad()
-
-                din, _, _, dout, _ = batch
-
-                preds = torch.zeros((dset_size, dset_samp_len, self.cfg.out_dim))
-                for tidx in range(dout.shape[1]):
-                    cur_din = din[:, tidx, :].T
-                    p = self.mike(cur_din)
-                    preds[:, tidx, :] = p[:, :]
-
-                loss = loss_func(preds, dout)
-                loss.backward()
-                self.mike.set_coadap_grads()
-                self.opt_mike.step()
-
-                g_logger.info("Brain recovery loss: %0.7f", loss.item())
-
 
     def _get_healthy_vs_lesioned_stats(self):
         cuda = self.cfg.cuda
@@ -275,6 +245,9 @@ class Experiment:
 
     def _coproc_finish(self, loss_history):
         return self.coproc.finish(loss_history)
+
+    def _coproc_report(self, loss_history):
+        return self.coproc.report(loss_history)
 
     def run(self):
         is_validation = False
@@ -353,6 +326,8 @@ class Experiment:
                 msg = None
 
             self.loss_history.log(g_logger, msg=msg)
+
+            self._coproc_report(self.loss_history)
 
             if should_stop:
                 break

@@ -32,6 +32,8 @@ class Config:
     dataset: torch.utils.data.Dataset
     loader_train: torch.utils.data.DataLoader
     loader_test: torch.utils.data.DataLoader
+    recover_after_lesion: bool
+    coadapt: bool
     cuda: typing.Any
 
     def unpack(self):
@@ -66,6 +68,10 @@ DEFAULT_LESION_ARGS = (
         (1, 2, 0, 1),
         # No M1->F5
         (0, 1, 1, 2),
+        # For good measure: no AIP->M1
+        (2, 3, 0, 1),
+        # For good measure: no M1->AIP
+        (0, 1, 2, 3),
     ],
 )
 DEFAULT_ACTIVATION_TYPE = activation.ActivationType.Tanh
@@ -141,6 +147,8 @@ def get(
     obs_sigma=DEFAULT_OBS_SIGMA,
     out_dim=DEFAULT_OUT_DIM,
     holdout_pct=DEFAULT_HOLDOUT_PCT,
+    recover_after_lesion=False,
+    coadapt=False,
     cuda=None,
 ):
 
@@ -201,25 +209,32 @@ def get(
     en_activation = en_activation_type.value
     cpn_activation = cpn_activation_type.value
 
-    cfg_str = "_".join(
-        [
-            str(observer_instance),
-            str(lesion_instance),
-            str(stimulus),
-            f"enAct{en_activation_type.name}",
-            f"cpnAct{cpn_activation_type.name}",
-        ]
-    )
+    cfg_toks = [
+        str(observer_instance),
+        str(lesion_instance),
+        str(stimulus),
+        f"enAct{en_activation_type.name}",
+        f"cpnAct{cpn_activation_type.name}",
+    ]
+    if recover_after_lesion:
+        cfg_toks += "recovPre"
+    if coadapt:
+        cfg_toks += "coadapt"
 
-    cfg_str_short = "_".join(
-        [
-            f"obs{observer_type.name}{obs_out_dim}",
-            f"lesion{lesion_type.name}",
-            f"stim{stimulation_type.name}{num_stim_channels}",
-            f"enAct{en_activation_type.name}",
-            f"cpnAct{cpn_activation_type.name}",
-        ]
-    )
+    cfg_str = "_".join(cfg_toks)
+
+    cfg_toks_short = [
+        f"obs{observer_type.name}{obs_out_dim}",
+        f"lesion{lesion_type.name}",
+        f"stim{stimulation_type.name}{num_stim_channels}",
+        f"enAct{en_activation_type.name}",
+        f"cpnAct{cpn_activation_type.name}",
+    ]
+    if recover_after_lesion:
+        cfg_toks_short += "recovPre"
+    if coadapt:
+        cfg_toks_short += "coadapt"
+    cfg_str_short = "_".join(cfg_toks_short)
 
     dataset, loader_train, loader_test = _get_dataset(
         holdout_pct=holdout_pct, cuda=cuda
@@ -237,6 +252,8 @@ def get(
         dataset,
         loader_train,
         loader_test,
+        recover_after_lesion,
+        coadapt,
         cuda,
     )
     return cfg_out
