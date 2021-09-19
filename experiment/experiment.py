@@ -144,10 +144,14 @@ class Experiment:
         mike.set_lesion(cfg.lesion_instance)
 
         self.mike = mike
-        self.opt_mike = AdamW(self.mike.parameters(), lr=1e-4)
+        self.opt_mike = AdamW(self.mike.parameters(), lr=1e-7)
 
-        for param in self.mike.parameters():
-            param.requires_grad = False
+        if (self.cfg.coadapt):
+            for param in self.mike.parameters():
+                param.requires_grad = True
+        else:
+            for param in self.mike.parameters():
+                param.requires_grad = False
 
         self.observer = cfg.observer_instance
 
@@ -168,7 +172,7 @@ class Experiment:
         if cfg.recover_after_lesion:
             model_path = michaels_load.get_path(fname_override="recovered.model")
             self.mike.load_state_dict(torch.load(model_path))
-            self.opt_mike = AdamW(self.mike.parameters(), lr=1e-4)
+            self.opt_mike = AdamW(self.mike.parameters(), lr=1e-7)
 
     @property
     def cfg(self):
@@ -317,6 +321,12 @@ class Experiment:
             # do now.
             result = self._coproc_finish(self.loss_history)
             should_stop, next_is_validation, user_data = result.unpack()
+
+            if (self.cfg.coadapt and (self.loss_history.eidx % 5) == 0):
+                loss = torch.nn.MSELoss()(actuals, dout[:, 1:, :])
+                loss.backward(inputs=list(self.mike.parameters()))
+                self.mike.set_coadap_grads()
+                self.opt_mike.step()
 
             self.loss_history.report_user_data(user_data)
 

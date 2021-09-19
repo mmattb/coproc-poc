@@ -196,7 +196,7 @@ class StimulusGaussianExp(Stimulus):
         self._cuda = cuda
 
         if retain_grad:
-            self._vals.retain_grad = True
+            self._vals.retain_grad()
 
         if cuda is not None:
             self._vals = self._vals.cuda(cuda)
@@ -228,7 +228,7 @@ class StimulusGaussianExp(Stimulus):
         self.W = win.unsqueeze(axis=0).repeat(self.batch_size, 1, 1)
 
         if self._retain_grad:
-            self.W.retain_grad = True
+            self.W.retain_grad()
 
     def reset(self, batch_size=None):
         super(StimulusGaussianExp, self).reset(batch_size=batch_size)
@@ -237,7 +237,7 @@ class StimulusGaussianExp(Stimulus):
         )
 
         if self._retain_grad:
-            self._vals.retain_grad = True
+            self._vals.retain_grad()
 
         self._calc_neuron_weights()
 
@@ -267,7 +267,7 @@ class StimulusGaussianExp(Stimulus):
     def get_next(self):
         if self._retain_grad:
             stim_out = self._vals.clone()
-            stim_out.retain_grad = True
+            stim_out.retain_grad()
         else:
             stim_out = self._vals.detach().clone()
 

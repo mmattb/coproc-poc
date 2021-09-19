@@ -208,12 +208,17 @@ class MichaelsRNN(nn.Module):
         I_zero_grad_mask[npm:, :] = 1.0
         self.I_zero_grad_mask = I_zero_grad_mask
 
+        self.I_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_input_features)
+        self.I_coadap_zero_grad_mask[:npm, :] = 1.0
+
+
         self.J_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_neurons)
         self.J_coadap_zero_grad_mask[:npm, :npm] = 1.0
 
         if self._cuda is not None:
             self.J_zero_grad_mask = self.J_zero_grad_mask.cuda(self._cuda)
             self.I_zero_grad_mask = self.I_zero_grad_mask.cuda(self._cuda)
+            self.I_coadap_zero_grad_mask = self.I_coadap_zero_grad_mask.cuda(self._cuda)
             self.J_coadap_zero_grad_mask = self.J_coadap_zero_grad_mask.cuda(self._cuda)
 
     def load_weights_from_file(self, data_path):
@@ -247,8 +252,7 @@ class MichaelsRNN(nn.Module):
         self.J.grad *= self.J_coadap_zero_grad_mask
         # It seems there is an AdamW bug where these are not always effective...
         # But let's try.
-        self.I.grad.detach_()
-        self.I.grad.zero_()
+        self.I.grad *= self.I_coadap_zero_grad_mask
 
     def set_lesion(self, lesion):
         """

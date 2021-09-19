@@ -15,7 +15,7 @@ import stim_model
 
 
 class CPN_EN_CoProc(experiment.CoProc):
-    def __init__(self, cfg, retain_stim_grads=False, log_dir=None):
+    def __init__(self, cfg, log_dir=None):
         self.cfg = cfg
 
         in_dim, stim_dim, out_dim, cuda = cfg.unpack()
@@ -33,9 +33,6 @@ class CPN_EN_CoProc(experiment.CoProc):
         self.en, self.opt_en = stim_model.get_stim_model(
             en_in_dim, out_dim, cuda=cfg.cuda
         )
-
-
-        self.retain_stim_grads = retain_stim_grads
 
         self.stims = None
 
@@ -91,8 +88,6 @@ class CPN_EN_CoProc(experiment.CoProc):
             # For now: no other thing
             raise ValueError(self.epoch_type)
 
-        if self.retain_stim_grads:
-            new_stim.retain_grad()
         self.stims.append(new_stim)
 
         return new_stim
