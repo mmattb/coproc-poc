@@ -29,7 +29,8 @@ class CPNEpochCPN:
         self.recent_train_val_loss = 0.05
 
         # Weight for stim regularizer
-        self.reg_stim_weight = 3e-7
+        #self.reg_stim_weight = 2e-8
+        self.reg_stim_weight = None
         self.stims = []
 
         self.reset()
@@ -87,10 +88,11 @@ class CPNEpochCPN:
         pred_loss = calc_pred_loss(preds, actuals)
         train_loss = calc_train_loss(preds, targets)
 
-        # Regularization for stimulation applied
-        train_loss += self.reg_stim_weight * sum(
-            [torch.linalg.norm(s) for s in self.stims]
-        )
+        if self.reg_stim_weight is not None:
+            # Regularization for stimulation applied
+            train_loss += self.reg_stim_weight * sum(
+                [torch.linalg.norm(s) for s in self.stims]
+            )
 
         if is_validation:
             self.recent_train_val_loss = train_loss.item()
