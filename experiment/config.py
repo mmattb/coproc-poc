@@ -34,11 +34,10 @@ class Config:
     loader_test: torch.utils.data.DataLoader
     recover_after_lesion: bool
     coadapt: bool
+    drop_m1: bool
     cuda: typing.Any
 
     def unpack(self):
-        # 3x due to 3 modules in the mRNN
-        # +1 for trial_end
         return (
             self.in_dim,
             self.stim_dim,
@@ -52,7 +51,13 @@ class Config:
 
     @property
     def in_dim(self):
-        return 3 * self.observer_instance.out_dim + 1
+        # 3x due to 3 modules in the mRNN
+        # +1 for trial_end
+        if self.drop_m1:
+            obs_mod_in = 2
+        else:
+            obs_mod_in = 3
+        return obs_mod_in * self.observer_instance.out_dim + 1
 
     @property
     def trial_length(self):
@@ -149,6 +154,7 @@ def get(
     holdout_pct=DEFAULT_HOLDOUT_PCT,
     recover_after_lesion=False,
     coadapt=False,
+    drop_m1=False,
     cuda=None,
 ):
 
@@ -189,16 +195,16 @@ def get(
         raise ValueError(f"Unrecognized stimulation type: {stimulation_type}")
 
     if lesion_type is lesion.LesionType.outputs:
-        if cuda:
-            raise NotImplementedError()
-
         lesion_instance = lesion_type.value(
             num_neurons_per_module,
             *lesion_args,
+            cuda=cuda,
         )
     elif lesion_type is lesion.LesionType.connection:
         lesion_instance = lesion_type.value(
-            num_neurons_per_module, *lesion_args, cuda=cuda
+            num_neurons_per_module,
+            *lesion_args,
+            cuda=cuda,
         )
 
     elif lesion_type is lesion.LesionType.none:
@@ -254,6 +260,7 @@ def get(
         loader_test,
         recover_after_lesion,
         coadapt,
+        drop_m1,
         cuda,
     )
     return cfg_out

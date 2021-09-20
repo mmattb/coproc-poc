@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 # Local imports
 from . import class_stdevs
 from . import config
+from . import lesion
 from . import stats
 from . import michaels_load
 from . import mRNN
@@ -32,7 +33,24 @@ class EpochResult:
         return self.stop, self.next_is_validation, self.user_data
 
 
-def get_config(recover_after_lesion=False, coadapt=False, cuda=None):
+def get_vanilla_config(cuda=None, **kwargs):
+    return get_config(cuda=cuda, **kwargs)
+
+
+def get_coadapt_config(cuda=None, **kwargs):
+    return get_config(cuda=cuda, coadapt=True, **kwargs)
+
+
+def get_m1_lesion_config(cuda=None, **kwargs):
+    lesion_type = lesion.LesionType.outputs
+    lesion_args = (0, 50)
+    return get_config(
+        cuda=cuda, coadapt=True, drop_m1=True, lesion_type=lesion_type,
+        lesion_args=lesion_args, **kwargs
+    )
+
+
+def get_config(recover_after_lesion=False, coadapt=False, cuda=None, **kwargs):
     """
     Args:
         - cuda (str, torch.device, or None): None for CPU, or a string like "0" specifying a GPU
@@ -59,7 +77,10 @@ def get_config(recover_after_lesion=False, coadapt=False, cuda=None):
         cuda_out = cuda
 
     cfg = config.get(
-        recover_after_lesion=recover_after_lesion, coadapt=coadapt, cuda=cuda_out
+        recover_after_lesion=recover_after_lesion,
+        coadapt=coadapt,
+        cuda=cuda_out,
+        **kwargs,
     )
 
     return cfg
@@ -146,7 +167,7 @@ class Experiment:
         self.mike = mike
         self.opt_mike = AdamW(self.mike.parameters(), lr=1e-7)
 
-        if (self.cfg.coadapt):
+        if self.cfg.coadapt:
             for param in self.mike.parameters():
                 param.requires_grad = True
         else:
@@ -168,6 +189,11 @@ class Experiment:
             self.var_whole_healthy,
             self.var_within_healthy,
         )
+
+        if cfg.drop_m1:
+            self.obs_drop_module_idx = 0
+        else:
+            self.obs_drop_module_idx = None
 
         if cfg.recover_after_lesion:
             model_path = michaels_load.get_path(fname_override="recovered.model")
@@ -282,7 +308,9 @@ class Experiment:
             mike_out = self.mike(din[:, 0, :].T)
 
             for tidx in range(steps - 1):
-                obs_raw = self.mike.observe(self.observer)
+                obs_raw = self.mike.observe(
+                    self.observer, drop_module_idx=self.obs_drop_module_idx
+                )
                 obs = obs_raw + (trial_end[:, tidx, :],)
 
                 stim = self._coproc_forward(obs)
@@ -322,7 +350,7 @@ class Experiment:
             result = self._coproc_finish(self.loss_history)
             should_stop, next_is_validation, user_data = result.unpack()
 
-            if (self.cfg.coadapt and (self.loss_history.eidx % 5) == 0):
+            if self.cfg.coadapt and (self.loss_history.eidx % 5) == 0:
                 loss = torch.nn.MSELoss()(actuals, dout[:, 1:, :])
                 loss.backward(inputs=list(self.mike.parameters()))
                 self.mike.set_coadap_grads()

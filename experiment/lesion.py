@@ -51,11 +51,14 @@ class LesionOutputs(Lesion):
 
 
 class LesionOutputsByIdxs(Lesion):
-    def __init__(self, num_neurons_per_module, start_idx, end_idx):
+    def __init__(self, num_neurons_per_module, start_idx, end_idx, cuda=None):
         self.start_idx = start_idx
         self.end_idx = end_idx
         self.lesion_mask = torch.ones((num_neurons_per_module * 3,))
         self.lesion_mask[start_idx:end_idx] = 0.0
+
+        if cuda is not None:
+            self.lesion_mask = self.lesion_mask.cuda(cuda)
 
     def lesion(self, network, pre_response):
         batch_size = pre_response.shape[0]
@@ -105,6 +108,6 @@ class LesionConnectionsByIdxs(Lesion):
 
 
 class LesionType(enum.Enum):
-    outputs = LesionOutputs
+    outputs = LesionOutputsByIdxs
     connection = LesionConnectionsByIdxs
     none = None
