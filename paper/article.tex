@@ -61,9 +61,35 @@ Seattle, WA 98105, USA}
 \end{indented}
 
 \begin{abstract}
-Brain co-processors\cite{rao.coproc} are devices which use artificial intelligence (AI) and closed-loop
-neurostimulation to shape neural activity and to bridge injured neural circuits for
-targeted repair and rehabilitation.
+\textit{Objective} Brain co-processors\cite{rao.coproc} are devices which use artificial
+intelligence (AI) and closed-loop neurostimulation to shape neural activity and to bridge
+injured neural circuits for targeted repair and rehabilitation. The co-processor framework
+offers a flexible approach to learning stimulation policies that optimize for
+(a) specific regimes of neural activities, or (b) external task performance.
+For example, it may seek to learn a complex stimulation policy, to aid a
+stroke victim in reaching to grasp an object.
+Through the use of artificial neural networks (ANNs) and deep learning, the
+co-processor co-adapts with the neural circuit, allowing it to seek optimal
+stimulation policies, and adapt them as the neural circuit changes. The results
+presented here demonstrate a neural co-processor for the first time through
+the use of a simulation, and explore some of the core algorithms that may allow them
+to succeed. \textit{Approach} We provide the first proof-of-concept of a neural
+co-processor, through the use of a simulated neural circuit, based on (ANNs).
+The simulated circuit performs a reach-to-grasp task, based on visual
+input which is designed to closely resemble a similar circuit in a primate brain
+\cite{michaels.mrnn}. We simulate a variety of lesions by altering the model, and
+then demonstrate a co-processor's ability to restore lost function through
+``stimulation'' of that model. We further test the ability of a
+co-processor to adapt its stimulation as the simulated brain
+undergoes changes. \textit{Main results} Our simulated co-processor
+successfully co-adapts with the neural circuit to accomplish the external reaching
+task. The co-processor framework demonstrated here adapts to a variety of lesion
+types, and to ongoing changes in the simulated brain. \textit{Significance} The proof-of-concept here
+outlines a co-processor model, as well as our approach to training it, leading to
+insights on how such a model may be developed for \textit{in vivo} use. We believe this
+co-processor design will allow for learning complex stimulation policies that
+help restore function to a stroke victim. This initial proof-of-concept lays
+the foundation for a future demonstration \textit{in vivo}.
 \end{abstract}
 
 \vspace{2pc}
@@ -83,14 +109,24 @@ targeted repair and rehabilitation.
 
 \section{Introduction}
 
+* Introduce the notion of a co-processor
 
-Closed-loop control:
+* BCIs: a single direction
+* Increasingly sophisticated ML techniques applied to decoding
+** See 2019Raj
+* Encoding models, stimulation models (cite)
+
+* Bi-directional BCIs (BBCIs)
+** Closed loop control
 \begin{itemize}
 	\item \cite{walker.inception} Inception Loops: driving brain states
 	\item \cite{kahana.biomarker} “Closed loop” here refers to when to apply stimulation, always of the same type and at the same site, based on memory performance.
 	\item \cite{tafazoli.acls} ACLS
 \end{itemize}
 
+Need for more complex stimulation policies, and need for optimizing task performance.
+
+Demonstration by way of simulation.
 
 Simulation:
 \begin{itemize}
@@ -98,19 +134,36 @@ Simulation:
 \end{itemize}
 
 \section{Method}
-asdf
+
+* Overview of test bed
+** Michaels model
+** Lesion designs
+** Stimulation design
+
+* EN architecture
+* CPN architecture
 
 \section{Results}
-asdf
+
+* Task performance improves drastically
+* Fine tuning takes a long time
+* Object classes separate
+* Can co-adapt with the brain, as it changes
+
+* White noise and noised params
+** Learning instability
+** Predictive power isn't enough
 
 \section{Discussion}
-asdf
+* Training efficiency
+* Spectrum from simple low dimensional stimulation vectors today to higher dimensional future
+* Toward in vivo application
 
 \section{Conclusion}
 asdf
 
 \section{Acknowledgements}
-asdf
+Ganguly, Priya, Anca, Justin, Luciano
 
 \section{Ethical Statement}
 asdf
