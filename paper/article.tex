@@ -62,34 +62,32 @@ Seattle, WA 98105, USA}
 
 \begin{abstract}
 \textit{Objective} Brain co-processors\cite{rao.coproc} are devices which use artificial
-intelligence (AI) and closed-loop neurostimulation to shape neural activity and to bridge
+intelligence (AI) for closed-loop neurostimulation to shape neural activity and to bridge
 injured neural circuits for targeted repair and rehabilitation. The co-processor framework
 offers a flexible approach to learning stimulation policies that optimize for
-(a) specific regimes of neural activities, or (b) external task performance.
+(a) specific regimes of neural activity, or (b) external task performance.
 For example, it may seek to learn a complex stimulation policy, to aid a
-stroke victim in reaching to grasp an object.
-Through the use of artificial neural networks (ANNs) and deep learning, the
-co-processor co-adapts with the neural circuit, allowing it to seek optimal
-stimulation policies, and adapt them as the neural circuit changes. The results
-presented here demonstrate a neural co-processor for the first time, through
-the use of a simulation, and explore some of the core algorithms that may allow them
-to succeed. \textit{Approach} We provide the first proof-of-concept of a neural
-co-processor, through the use of a simulated neural circuit, which  performs a
-reach-to-grasp task, based on visual input. It is designed to closely resemble
-a similar circuit in a primate brain \cite{michaels.mrnn}. We simulate a
-variety of lesions by altering the model, and
-then demonstrate a co-processor's ability to restore lost function through
-``stimulation'' of that model. We further test the ability of a
-co-processor to adapt its stimulation as the simulated brain
-undergoes changes. \textit{Main results} Our simulated co-processor
-successfully co-adapts with the neural circuit to accomplish the external reaching
-task. The co-processor framework demonstrated here adapts to a variety of lesion
-types, and to ongoing changes in the simulated brain. \textit{Significance} The proof-of-concept here
-outlines a co-processor model, as well as our approach to training it, leading to
-insights on how such a model may be developed for \textit{in vivo} use. We believe this
-co-processor design will allow for learning complex stimulation policies that
-help restore function to a stroke victim. This initial proof-of-concept lays
-the foundation for a future demonstration \textit{in vivo}.
+stroke victim in reaching to grasp an object. Through the use of artificial neural
+networks (ANNs) and deep learning, the co-processor co-adapts with the
+neural circuit, allowing it to seek optimal stimulation policies, and adapt them
+as the neural circuit changes. The results presented here demonstrate a
+neural co-processor for the first time, through the use of a simulation, and
+explore some of the core algorithms that may allow them to succeed.
+\textit{Approach} We provide the first proof-of-concept of a neural co-processor,
+through the use of a simulated neural circuit, which  performs a reach-to-grasp task,
+based on visual input. It is designed to closely resemble a similar circuit in
+a primate brain \cite{michaels.mrnn}. We simulate a variety of lesions by altering
+the model, and then demonstrate a co-processor's ability to restore lost function
+through ``stimulation'' of that model. We further test the ability of a co-processor to
+adapt its stimulation as the simulated brain undergoes changes.
+\textit{Main results} Our simulated co-processor successfully co-adapts with the neural
+circuit to accomplish the external reaching task. The co-processor framework
+demonstrated here adapts to a variety of lesion types, and to ongoing changes in the
+simulated brain.
+\textit{Significance} The proof-of-concept here outlines a co-processor model, as well
+as our approach to training it, leading to insights on how such a model may be
+developed for \textit{in vivo} use. We believe this co-processor design will allow for
+learning complex stimulation policies that help restore function to a stroke victim.
 \end{abstract}
 
 \vspace{2pc}
@@ -108,33 +106,53 @@ the foundation for a future demonstration \textit{in vivo}.
 
 
 \section{Introduction}
-* Aided in part by application of advanced AI techniques, BCIs have made
-advancements over the last several decads, allowing for decoded
-brain signals to be used for control of a wide variety of virtual and physical
-prostheses.
-** Separately: advances in stimulation techniques and modeling have allowed us to probe neural circuit dynamics and learn to better drive neural circuits towards target dynamics (citations)
-** Increasing interesting in combining decoding and encoding, for closed-loop control. BBCIs
-** They have the potential to apply real-time, fine-grained control of neural circuits.
-** Allows stimulation to be conditioned on a user's intention, sensory feedback, error signals, etc., to drive e.g. improvement in motor control after impairment due to TBI.
+Aided in part by application of advanced AI techniques, brain-computer interfaces (BCIs) have made
+advancements over the last several decads, allowing for decoded brain signals to be used for
+control of a wide variety of virtual and physical prostheses \cite{rao.bcibook} \cite{wolpaw.bcibook} \cite{moritz.neuro}
+\cite{lebedev.bmi}. Separately: advances in stimulation techniques and modeling have allowed us to probe
+neural circuit dynamics \textbf{TODO: citations} and learn to better drive neural circuits towards target
+dynamics, by encoding and delivering information through stimulation \textbf{TODO: citations}.
+Recently, there has been increasing interest in building on these advances to combine decoding
+and encoding in a single system, for closed-loop stimulation of a neural circuit. Bi-directional
+BCIs (BBCIs) allow stimulation to be conditioned by decoded brain activity as well as external
+sensor data (e.g. camera), which can allow for the application of real-time, fine-grained control of
+neural circuits and prosthetic devices \textbf{TODO: citations}. These may lead, for example, to neuro-
+prostheses that are capable of restoring movement which was lost due to traumatic brain injury (TBI),
+to a degree not previously possible.
 
-* Introduce the notion of a co-processor
-** Use of AI and deep learning to determine a stimulation policy.
-** Co-adapts policy to solve a task, together with the neural circuit
-** Flexible model, allows for optimization of either brain activities or external task
-** "These ``neural co-processors'' can be used to jointly optimize cost functions with the
-   nervous system to achieve desired behaviors ranging from targeted neuro-rehabilitation
-   to augmentation of brain function."
-** Proposed approach here combines a learned stimulation model with a stimulation agent
-** Learning allows for active adaptation to the neural circuit as it changes.
+Motivated by that progress, we demonstrate here a flexible and unifying framework for combining encoding
+and decoding, which we term ``neural co-processors'' \cite{rao.coproc}. Neural co-processors leverage
+AI and deep learning to identify optimal, closed-loop stimulation patterns. The approach is flexible
+enough to optimize not only for particular neural activities, but also for tasks external to the
+subject. For example, they may be able to aid a stroke victim by finding a stimulation pattern of
+the motor cortex which helps restore lost limb function.
 
-* BCIs: a single direction
-* Increasingly sophisticated ML techniques applied to decoding
-** See 2019Raj citations
-* Encoding models, stimulation models (cite)
+Additionally, the co-processor framework allows a neuro-prosthesis to actively adapt to
+a neural circuit as it changes with time. This framework is capable of co-adapting with
+the circuit, i.e. brain, by updating its stimulation regime, while at the same time the
+brain is updating its response to the stimulation, and changing due to natural plasticity,
+aging, etc. This allows the co-processor to continually optimize for the intended cost
+function, despite the signficant non-stationarity of the target circuit.
 
-* Open loop control examples.  \cite{khanna.openloop}
+Here we provide a proof-of-concept in simulation for a co-processor that restores
+movement to a limb, after a subject has suffered a stroke affecting its ability to
+use that limb. It combines:
+\begin{itemize}
+	\item A stimulation model, which models the relationship between decoded brain activity,
+	      stimulation, and task performance.
+	\item An AI agent which determines the stimulation to apply, in real time.
+\end{itemize}
+Proposed approach here combines a learned stimulation model with a stimulation agent
 
-* Learning stimulation models \cite{shanechi.stimmodel}
+* Encoding models \cite{shanechi.stimmodel} (others?)
+** Decades of advancement in encoding models, used for:
+*** Better understanding the brain
+*** Learning to understand the effects fo stimulation regimes
+** Optogenetic vs TMS vs eCog
+** In our case, designed to aid in the training of the stimulation agent.
+
+* Open loop control
+** Example: \cite{khanna.openloop}
 
 * Bi-directional BCIs (BBCIs)
 ** Closed loop control
@@ -142,6 +160,7 @@ prostheses.
 	\item \cite{walker.inception} Inception Loops: driving brain states
 	\item \cite{kahana.biomarker} “Closed loop” here refers to when to apply stimulation, always of the same type and at the same site, based on memory performance.
 	\item \cite{tafazoli.acls} ACLS
+	\item cite Bolus
 \end{itemize}
 
 * Need for more complex stimulation policies, and need for optimizing task performance.
@@ -167,9 +186,20 @@ Begin with a proof-of-concept in simulation.
 *** Disconnect modules vs lesion M1, and the effects
 ** Stimulation design
 *** Spatio-temporal smoothing
+** Observation model
 
 * EN architecture
 * CPN architecture
+
+* Training
+** Alternate training EN and CPN
+*** Train an EN
+**** Training the EN until predictive power reaches a threshold, based on current task performance
+**** Training regime based on most recent CPN, similar CPNS (noise added to params), and white noise stimulation
+**** Single batch of data from applying current CPN set and white noise to the brain, EN fit to ``offline'' it over maining epochs
+**** Predictive power alone is not sufficient for use in training the CPN: we need to form the batch as above, otherwise training is unstable.
+*** Train the CPN
+**** Backprop through the EN, effectively using the EN's prediction as ground truth
 
 \section{Results}
 
@@ -178,9 +208,20 @@ Begin with a proof-of-concept in simulation.
 * Object classes separate
 * Can co-adapt with the brain, as it changes
 
+* Split by lesion design
+
+* Show example where AIP/F5 lesioned and how that affects performance
+
+* Any point in showing sensitivity to observation or stim dim?
+
+* Try regularization variation?
+
 * White noise and noised params
 ** Learning instability
 ** Predictive power isn't enough
+** Illustrate this
+
+* Training efficiency analysis
 
 \section{Discussion}
 * Training efficiency
