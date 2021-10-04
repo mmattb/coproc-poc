@@ -46,6 +46,7 @@ class CPNEpochEN:
 
     def reset_en(self):
         self.en, self.opt_en = self.new_en(self.en)
+
         return self.en, self.opt_en
 
     def new_en(self, old_en):
@@ -73,17 +74,20 @@ class CPNEpochEN:
         if self.preds is None:
             self.preds = []
 
-    def forward(self, brain_data, loss_history, is_validation):
+    def forward(self, brain_data, loss_history, is_validation, stim=None):
         batch_size = brain_data[0].shape[0]
         self.ensure_preds(batch_size)
 
-        cpn_in = torch.cat(brain_data, axis=1).detach()
+        if stim is None:
+            cpn_in = torch.cat(brain_data, axis=1).detach()
 
-        if is_validation:
-            new_stim = self.cpn(cpn_in)
+            if is_validation:
+                new_stim = self.cpn(cpn_in)
+            else:
+                self.ensure_noisey_cpn(batch_size)
+                new_stim = self.cpn_noise(cpn_in)
         else:
-            self.ensure_noisey_cpn(batch_size)
-            new_stim = self.cpn_noise(cpn_in)
+            new_stim = stim
 
         # en receives (obs, stims, trial_end)
         # (detaching just in case; we don't want to backprop here)
@@ -110,7 +114,7 @@ class CPNEpochEN:
             pred_loss.backward(inputs=list(self.en.parameters()))
             self.opt_en.step()
 
-    def finish(self, loss_history, is_validation):
+    def finish(self, loss_history, is_validation, reused_data=False):
 
         vl = self.recent_pred_val_loss
         for p in self.opt_en.param_groups:
@@ -147,7 +151,7 @@ class CPNEpochEN:
         elif (
             vl < max(0.02 * self.recent_train_loss, 0.0003)
             and self.checkpoint_eidx > 100
-        ) or self.checkpoint_eidx == 2000:
+        ) or self.checkpoint_eidx >= 2000:
             en_is_ready = True
             self.checkpoint_eidx = 0
         else:
@@ -155,7 +159,7 @@ class CPNEpochEN:
             en_is_ready = False
 
         user_data = CPNENStats(
-            "en",
+            "en_offline" if reused_data else "en",
             EpochType.EN,
             train_loss_out,
             train_val_loss_out,
