@@ -223,9 +223,9 @@ def get(
         f"cpnAct{cpn_activation_type.name}",
     ]
     if recover_after_lesion:
-        cfg_toks += "recovPre"
+        cfg_toks.append("recovPre")
     if coadapt:
-        cfg_toks += "coadapt"
+        cfg_toks.append("coadapt")
 
     cfg_str = "_".join(cfg_toks)
 
@@ -237,9 +237,9 @@ def get(
         f"cpnAct{cpn_activation_type.name}",
     ]
     if recover_after_lesion:
-        cfg_toks_short += "recovPre"
+        cfg_toks_short.append("recovPre")
     if coadapt:
-        cfg_toks_short += "coadapt"
+        cfg_toks_short.append("coadapt")
     cfg_str_short = "_".join(cfg_toks_short)
 
     dataset, loader_train, loader_test = _get_dataset(

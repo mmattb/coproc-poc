@@ -45,8 +45,12 @@ def get_m1_lesion_config(cuda=None, **kwargs):
     lesion_type = lesion.LesionType.outputs
     lesion_args = (0, 50)
     return get_config(
-        cuda=cuda, coadapt=True, drop_m1=True, lesion_type=lesion_type,
-        lesion_args=lesion_args, **kwargs
+        cuda=cuda,
+        coadapt=True,
+        drop_m1=True,
+        lesion_type=lesion_type,
+        lesion_args=lesion_args,
+        **kwargs,
     )
 
 
@@ -138,7 +142,7 @@ class CoProc:
         """
         pass
 
-    def report(self, loss_history):
+    def report(self, loss_history, mike):
         """
         Final chance to report/calc stats, records, logs, etc., after finish.
         This step is separate from finish(), since the most recent loss history
@@ -276,8 +280,8 @@ class Experiment:
     def _coproc_finish(self, loss_history):
         return self.coproc.finish(loss_history)
 
-    def _coproc_report(self, loss_history):
-        return self.coproc.report(loss_history)
+    def _coproc_report(self, loss_history, mike):
+        return self.coproc.report(loss_history, mike)
 
     def run(self):
         is_validation = False
@@ -365,7 +369,7 @@ class Experiment:
 
             self.loss_history.log(g_logger, msg=msg)
 
-            self._coproc_report(self.loss_history)
+            self._coproc_report(self.loss_history, self.mike)
 
             if should_stop:
                 break

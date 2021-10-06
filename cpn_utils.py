@@ -9,10 +9,11 @@ from experiment.utils import render_none_or_float
 
 class EpochType(enum.Enum):
     EN = 0
-    CPN = 1
-    CPN_AND_EN = 2
-    VAL_EN = 3
-    VAL_CPN = 4
+    EN_OFFLINE = 1
+    CPN = 2
+    CPN_AND_EN = 3
+    VAL_EN = 4
+    VAL_CPN = 5
 
 
 @attr.s(auto_attribs=True)

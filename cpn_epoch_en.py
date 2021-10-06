@@ -37,6 +37,9 @@ class CPNEpochEN:
         self.tidx = 0
         self.reset_models()
 
+    def reset_period(self):
+        self.checkpoint_eidx = 0
+
     def reset_models(self):
         self.en.reset()
         self.cpn.reset()
@@ -144,23 +147,23 @@ class CPNEpochEN:
 
         if (
             vl != vl or vl == float("inf") or vl > 1.5
-        ):  # or self.checkpoint_eidx > 5000:
+        ):
             self.en, self.opt_en = self.new_en(self.en)
             en_is_ready = False
-            self.checkpoint_eidx = 0
+            self.reset_period()
         elif (
             vl < max(0.02 * self.recent_train_loss, 0.0003)
             and self.checkpoint_eidx > 100
         ) or self.checkpoint_eidx >= 2000:
             en_is_ready = True
-            self.checkpoint_eidx = 0
+            self.reset_period()
         else:
             self.checkpoint_eidx += 1
             en_is_ready = False
 
         user_data = CPNENStats(
             "en_offline" if reused_data else "en",
-            EpochType.EN,
+            EpochType.EN_OFFLINE if reused_data else EpochType.EN,
             train_loss_out,
             train_val_loss_out,
             self.recent_pred_loss,

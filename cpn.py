@@ -60,7 +60,7 @@ class CPN_EN_CoProc(experiment.CoProc):
         else:
             self.log_dir = None
 
-        self.round_thresh = 3
+        self.round_thresh = 1
         # A list of up to round_thresh length
         #  Each item is a tuple (actuals, targets, trial_end, stim list, obs list)
         #   The list is trial_len length.
@@ -144,7 +144,9 @@ class CPN_EN_CoProc(experiment.CoProc):
         is_validation = next_is_validation
 
         done = False
-        while not done:
+        checkpoint_eidx = 0
+        en_is_ready = False
+        while not en_is_ready and checkpoint_eidx < 1000:
             for bidx in range(self.round_thresh):
                 actuals, targets, trial_end, stims, brain_data = self.saved_data[bidx]
 
@@ -185,13 +187,16 @@ class CPN_EN_CoProc(experiment.CoProc):
                 loss_history.report_user_data(user_data)
                 loss_history.log(g_logger, msg=user_data.msg)
 
-                done = en_is_ready
                 is_validation = next_is_validation
 
-                if done:
+                if en_is_ready:
                     break
 
+                checkpoint_eidx += 1
+
         self.saved_data = []
+        self.en_epoch.reset_period()
+        return en_is_ready
 
     def finish(self, loss_history):
         if self.epoch_type in (EpochType.EN, EpochType.VAL_EN):
@@ -220,16 +225,19 @@ class CPN_EN_CoProc(experiment.CoProc):
                 self.epoch_type = EpochType.EN
 
             if len(self.saved_data) == self.round_thresh and not en_is_ready:
-                self.train_en_closed_loop(loss_history, next_is_validation)
-                en_is_ready = True
+                en_is_ready = self.train_en_closed_loop(loss_history,
+                    next_is_validation)
 
-                self.epoch_type = EpochType.CPN
-                self.cpn_epoch.set_en(self.en, self.opt_en)
+                if en_is_ready:
+                    self.epoch_type = EpochType.CPN
+                    self.cpn_epoch.set_en(self.en, self.opt_en)
 
-                for param in self.cpn.parameters():
-                    param.requires_grad = True
-                for param in self.en.parameters():
-                    param.requires_grad = False
+                    for param in self.cpn.parameters():
+                        param.requires_grad = True
+                    for param in self.en.parameters():
+                        param.requires_grad = False
+                else:
+                    self.epoch_type = EpochType.EN
 
             we_are_done = False
 
@@ -264,7 +272,7 @@ class CPN_EN_CoProc(experiment.CoProc):
         self.reset_soft()
         return result
 
-    def report(self, loss_history):
+    def report(self, loss_history, mike):
         if self.log_dir is not None:
             if (loss_history.eidx % 50) == 0:
                 log_path = os.path.join(self.log_dir, "log")
@@ -275,6 +283,8 @@ class CPN_EN_CoProc(experiment.CoProc):
 
                 cpn_path = os.path.join(self.log_dir, "cpn.model")
                 en_path = os.path.join(self.log_dir, "en.model")
+                mike_path = os.path.join(self.log_dir, "mike.model")
 
                 torch.save(self.cpn.state_dict(), cpn_path)
                 torch.save(self.en.state_dict(), en_path)
+                torch.save(mike.state_dict(), mike_path)
