@@ -40,7 +40,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 \documentclass[12pt]{iopart}
-\newcommand{\gguide}{{\it Preparing graphics for IOP Publishing journals}}
+\usepackage{graphicx}
+\graphicspath{ {./figs/} }
 %Uncomment next line if AMS fonts required
 %\usepackage{iopams}
 \begin{document}
@@ -228,25 +229,71 @@ explore:
 
 \section{Method}
 
-TODO: arch figure here (from Slide 5)
+\begin{figure}
+\includegraphics[width=\textwidth]{weill_arch.png}
+\caption{Using a co-processor to drive external task performance after a traumatic brain injury}
+\centering
+\label{fig:weill}
+\end{figure}
 
 \subsection{Architecture Overview}
-First, we present the architecture of our co-processor design. The co-processor is
-composed of two artifical neural networks:
-\begin{itemize}
-	\item A stimulation and neural dynamics model, known as an ``Emulator Network''.  It models the relationship
-\end{itemize}
-* EN architecture
-** Single layer LSTM with tanh activations, following by linear readout
-** LSTMs proved to be necessary for tracking long-running neural dynamics in a way that gave us a useful training signal
-*** Explore why? Revisit
-** Inputs: brain observations, stimulation vector, trial end indicator
-** Outputs: predicted muscle velocity
-* CPN architecture
-** Single layer LSTM with tanh activations, following by linear readout
-** Inputs: brain observations, trial end indicator
-** Outputs: stimulation vector
+First, we present the architecture of our co-processor design. This design aims to solve two
+fundamental challenges in using neural stimulation to improve external task performance.
+First, neural networks exhibit long-running and highly nonlinear dependencies, necessitating
+the need for a stimulation agent to account for-far distant effects of the stimulation it
+applies. Second, with neurologically complex tasks, such as grasping, the mapping between
+neural activity as-measured and the external task cannot be determined \textit{a priori}.
 
+Our co-processor attempts to solve this with a pair of artificial neural networks:
+\begin{itemize}
+	\item A stimulation and neural dynamics model, known as an ``Emulator Network'' (EN). It models the relationship
+	      between the stimulation, neural dynamics, and external task. It's purpose is for training the second network.
+	\item A stimulation agent, known as the ``co-processor network'' (CPN), which maps neural activity, and possibly
+	      data from external sensors, to stimulation parameters.
+\end{itemize}
+
+We co-train the EN and CPN, with the goal of training a CPN whose output stimulation parameters
+improve task performance. By continually training both, they adapt to the brain as it changes,
+effectively causing brain-stimulator co-adaptation. The EN is a tool for training the CPN,
+giving us a way to back-propagate task error to the CPN. It outputs task-relevant
+metrics - a prediction of muscle velocities in our case - given measurements of neural
+activity, and the stimulation parameters output from the CPN. If the EN is trained in a
+particular way, and to a sufficient level of precision, it can be used to overcome the
+challenge of not knowing a mapping between stimulation and the task. When training the
+CPN, we in-effect treat the EN's output as the true task performance, or a related
+metric, and then backpropagate the loss defined in terms of that metric. See Figs X, Y.
+We will illustrate the details of the training algorithm below.
+
+In our present demonstration, the EN is constituted as a single layer, fully connected,
+long short-term memory (LSTM) recurrent neural network (RNN), with hyperbolic tangent ($tanh$)
+activations, and a linear readout. The general notion of a co-processor does
+not require this precise architecture, but for our example, we found that the LSTM
+approach allows the network to continuously adapt to long-running dependencies in
+the simulated neural dynamics, far better than a vanilla RNN. The CPN is constituted
+as an almost identical network, though with a different dimensionality, as we explain
+below. There is no strict requirement for the EN and CPN to be so similar, but we
+found this simple architecture to work well in our example.
+
+Note that the EN effectively constitutes a stimulation model. Its design is
+somewhat motivated by the common linear time-invariant state space model of
+stimulation, as in e.g. Yang et al. \cite{shanechi.stimmodel}, which is a helpfully
+simple (linear) approach. That approach seeks to model neural network dynamics in
+terms of a stationary linear model, which, due in part to its simplicity and the
+number of techniques developed for it, lends itself to useful interpretations and
+analyses of those neural dynamics.
+
+There are some key differences between that approach and the EN architecture we
+present here. Our EN's purpose is simply to train the CPN, so we pick an
+architecture we find to be best suited to that job. First, our EN architecture
+is not linear, through the use of a $tanh$ activation function. That allows us
+to escape some of the limits in representational power of linear models.
+Second, LSTM cells are designed to better capture long-running network
+dynamics, and in our case we found that they were crucial for that reason.
+Compare that to the simpler cells commonly used in vanilla RNNs, which
+yield functionally the same approach as the linear state space model, less
+the use of a nonlinear activation function.
+
+// TODO? Try having no nonlinearity?
 
 \subsection{Simulation Overview}
 * Proof-of-concept by way of simulation.
@@ -276,6 +323,12 @@ to search for an optimal visual input: \cite{walker.inception}
 ** Stimulation design
 *** Spatio-temporal smoothing
 ** Observation model
+
+* Overview of the four experiments:
+** Vanilla
+** Co-adaptive with connectivity loss
+** Co-adaptive with partial M1 loss
+** Co-adaptive with data reuse
 
 \subsection{Training the Model}
 Training
