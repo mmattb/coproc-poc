@@ -11,9 +11,10 @@ class EpochType(enum.Enum):
     EN = 0
     EN_OFFLINE = 1
     CPN = 2
-    CPN_AND_EN = 3
-    VAL_EN = 4
-    VAL_CPN = 5
+    CPN_OFFLINE = 3
+    CPN_AND_EN = 4
+    VAL_EN = 5
+    VAL_CPN = 6
 
 
 @attr.s(auto_attribs=True)

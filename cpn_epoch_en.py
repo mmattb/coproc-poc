@@ -48,6 +48,7 @@ class CPNEpochEN:
         self.opt_cpn.zero_grad()
 
     def reset_en(self):
+        self.recent_pred_val_loss = 0.05
         self.en, self.opt_en = self.new_en(self.en)
 
         return self.en, self.opt_en
@@ -128,12 +129,6 @@ class CPNEpochEN:
             else:
                 p["lr"] = 4e-3
 
-        # Every 10 epochs let's validate/test
-        if not is_validation and (loss_history.eidx % 10) == 0:
-            next_is_validation = True
-        else:
-            next_is_validation = False
-
         last_rec = loss_history.get_recent_record(-2)
         train_loss_out = float("nan")
         train_val_loss_out = float("nan")
@@ -154,12 +149,18 @@ class CPNEpochEN:
         elif (
             vl < max(0.02 * self.recent_train_loss, 0.0003)
             and self.checkpoint_eidx > 100
-        ) or self.checkpoint_eidx >= 2000:
+        ) or self.checkpoint_eidx >= 3000:
             en_is_ready = True
             self.reset_period()
         else:
             self.checkpoint_eidx += 1
             en_is_ready = False
+
+        # Every 10 epochs let's validate/test
+        if not en_is_ready and not is_validation and (self.checkpoint_eidx % 10) == 0:
+            next_is_validation = True
+        else:
+            next_is_validation = False
 
         user_data = CPNENStats(
             "en_offline" if reused_data else "en",
