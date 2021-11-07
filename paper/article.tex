@@ -239,7 +239,7 @@ explore:
 \subsection{Architecture Overview}
 First, we present the architecture of our co-processor design. This design aims to solve two
 fundamental challenges in using neural stimulation to improve external task performance.
-First, neural networks exhibit long-running and highly nonlinear dependencies, necessitating
+First, neural networks exhibit long-running and nonlinear dependencies, necessitating
 the need for a stimulation agent to account for far-distant effects of the stimulation it
 applies. Second, with neurologically complex tasks, such as grasping, the mapping between
 neural activity as-measured and the external task cannot be determined \textit{a priori}.
@@ -292,21 +292,62 @@ is not linear, through the use of a $tanh$ activation function. That allows us
 to escape some of the limits in representational power of linear models, though
 we didn't deeply test a strictly linear approach.
 Second, LSTM cells are designed to better capture long-running network
-dynamics, and in our case we found that they were crucial for that reason.
+dynamics, and in our case we found that they were crucial for that reason:
+when using vanilla RNN cells, our co-processor wasn't able to train well.
 Compare that to the simpler cells commonly used in vanilla RNNs, which
 yield functionally the same approach as the linear state space model, less
 the use of a nonlinear activation function.
 
 \subsection{Simulation Overview}
-We demonstrate our approach here using a simulated grasping circuit. A detailed
-simulation such as this allows us to explore some of the critical details in
-how to train a co-processor of this design. By first doing such exploration in
+We demonstrate our approach here using a simulated grasping circuit.
+A detailed simulation such as this allows us to explore some of the critical details in
+training a co-processor of this design. By first doing such exploration in
 simulation, we are able to rapidly and cheaply iterate on our design, prior to
 any \textit{in vivo} experiments. In order for the simulation to be
 admissible, we need to ensure it has some properties that allow it to strongly
 indicate if our design is improving in a direction that will later allow for
 real deployments. Otherwise, our design may be adapting to the pecularities of
-the simulation, witheout becoming more useful.
+the simulation, without becoming more useful for the real world.
+
+The simulated circuit, from Michaels et al. \cite{michaels.mrnn, susillo.mrnn}, was trained
+to resemble the grasping circuits of monkey subjects engaged in a reach-to-grasp task. It
+consists of a ``modular'' vanilla RNN, and a linear readout layer. The inputs are visual
+features intended to capture the view the monkeys had during the task, i.e. 3D renderings of
+the same objects which the monkeys grasped. The outputs are muscle length velocities for the
+should, arm, and hand of the monkey during the trial. The natural velocities were captured
+with a motion capturing glove, and the artificial neural network is trained to recapitulate
+those grasping motions. See Fig. \ref{fig:michaels}.
+
+The design of the circuit is intended to resemble a vision-to-grasp pipeline, essentially
+representing the visual processing needed to reach the hand to the appropriate position for
+the grasp, and to form the hand properly for grasping the particular shape of object. The
+emergent dynamics of the artificial network's ``modules'', once train, correspond roughly
+to the AIP, F5, and M1 portions of the monkey subjects' brains. Notably, the activity of
+the module receiving the visual inputs resembles the AIP activity of the monkey subject
+from the same trials. Likewise, the second and third modules resemble the natural activity
+from the monkey's F5 and M1 regions, respectively. The network dynamics show a number of
+other correspondences to the monkeys' natural brain activity as well, as detailed in the paper.
+
+Notably, the simulated circuit's activity shows a relatively clear separation of the
+object shapes.  That is - the visual information input to the network differentiates one trial
+from another, and the circuit is able to leverage that information to properly condition
+the hand shape trajectory for grasping the object of that trial's particular shape, size, and location.
+The visual information forward-propagates through the network, through successive processing
+steps, where it is eventually leveraged to recapitulate the grasp appropriate for the object
+represented by the input visual features. As we will note below: in the absense of this
+visual information forward propagating, the circuit can at-best learn a loss-minimizing grasp,
+stereotyped across all object sizes and shapes. Such a grasp bears some resemblance to all
+grasps the given monkey performed, due to all trials being a reach-to-grasp preceded by a
+waiting period, but performance suffers drastically.
+
+As a result, simulating a brain lesion in terms of this artificial network results in error modes
+which resemble a natural lesion of certain regions of a primate brain.
+
+...
+* Lesioning properties
+
+* Long-running dynamics
+
 
 ** Potentially helpful to look for a simulated neural circuit which has internal dynamics, i.e. information propagation, which is demonstrably similar to natural circuits.
 ** \cite{kao.sim} Likeness of RNNs to natural circuits re: dynamics
@@ -314,19 +355,11 @@ the simulation, witheout becoming more useful.
 ** \cite{bernal.sim} Simulation of spiking neural network, learning stimulation regime. Use of a biomimetic
   simulation to develop and evaluate a neural controller. Use of lesion model.
 
-The stimulation model in our case adapts itself to the task of training our closed-
-loop AI stimulation agent. For a neurologically complex task such as grasping, we
-don't know \textit{a priori} what stimulation regimes to to explore while searching
-for an optimal solution. Our stimulation model plays the role of generating learning
-signals, via error backpropagation (<TODO? Citation?>), for our stimulation agent.
-It continuously updates itself based on observations of brain activity, stimulation,
-and external task queues, such as hand position.
-
 Example: Use of actual stimulation of an actual brain, together with offline deep learning,
 to search for an optimal visual input: \cite{walker.inception}
 
 * Overview of test bed
-** Michaels model \cite{michaels.mrnn} \cite{susillo.mrnn}.
+** Michaels model .
 ** Lesion designs
 *** Lesion examples, i.e. hand velocity more affected than shoulder velocity.
 *** Disconnect modules vs lesion M1, and the effects

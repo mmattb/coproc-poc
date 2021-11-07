@@ -230,6 +230,10 @@ class StimulusGaussianExp(Stimulus):
         if self._retain_grad:
             self.W.retain_grad()
 
+    def get_neuron_weights(self):
+        self._calc_neuron_weights()
+        return self.W
+
     def reset(self, batch_size=None):
         super(StimulusGaussianExp, self).reset(batch_size=batch_size)
         self._vals = torch.zeros(
