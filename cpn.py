@@ -27,14 +27,15 @@ class CPN_EN_CoProc(experiment.CoProc):
             in_dim,
             stim_dim,
             num_neurons=in_dim,
-            activation_func=torch.nn.Tanh,
+            activation_func=cfg.cpn_activation,
             cuda=cuda,
         )
         self.opt_cpn = AdamW(self.cpn.parameters(), lr=1e-3)
 
         en_in_dim = cfg.observer_instance.out_dim + stim_dim + 1
         self.en, self.opt_en = stim_model.get_stim_model(
-            en_in_dim, out_dim, cuda=cfg.cuda
+            en_in_dim, out_dim, activation=cfg.en_activation,
+            cuda=cfg.cuda
         )
 
         self.stims = None

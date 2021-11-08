@@ -31,7 +31,7 @@ class Lesion(object):
 
 
 class LesionOutputs(Lesion):
-    def __init__(self, num_neurons_per_module, module_id, pct):
+    def __init__(self, num_neurons_per_module, module_id, pct, cuda=None):
         self.lesion_mask = torch.ones((num_neurons_per_module * 3,))
         start_idx, end_idx = module_id_to_idxs(num_neurons_per_module, module_id)
         kill_idxs = random.sample(
@@ -40,6 +40,9 @@ class LesionOutputs(Lesion):
         self.lesion_mask[kill_idxs] = 0.0
         self.module_id = module_id
         self.pct = pct
+
+        if cuda is not None:
+            self.lesion_mask = self.lesion_mask.cuda(cuda)
 
     def lesion(self, network, pre_response):
         batch_size = pre_response.shape[0]

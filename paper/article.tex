@@ -40,7 +40,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 \documentclass[12pt]{iopart}
-\usepackage{graphicx}
+\usepackage{graphicx,epstopdf}
+\usepackage{caption}
+\usepackage{subcaption}
 \graphicspath{ {./figs/} }
 %Uncomment next line if AMS fonts required
 %\usepackage{iopams}
@@ -311,40 +313,84 @@ the simulation, without becoming more useful for the real world.
 
 The simulated circuit, from Michaels et al. \cite{michaels.mrnn, susillo.mrnn}, was trained
 to resemble the grasping circuits of monkey subjects engaged in a reach-to-grasp task. It
-consists of a ``modular'' vanilla RNN, and a linear readout layer. The inputs are visual
+consists of a ``modular'' vanilla RNN (mRNN), and a linear readout layer. The inputs are visual
 features intended to capture the view the monkeys had during the task, i.e. 3D renderings of
 the same objects which the monkeys grasped. The outputs are muscle length velocities for the
 should, arm, and hand of the monkey during the trial. The natural velocities were captured
 with a motion capturing glove, and the artificial neural network is trained to recapitulate
-those grasping motions. See Fig. \ref{fig:michaels}.
+those grasping motions. Data and trained models from this work were supplied to us by the lead
+author Jonathan Michaels, for the purpose of our present simulation. See Fig. \ref{fig:michaels}.
+
+\begin{figure}
+\includegraphics[width=\textwidth]{michaels.eps}
+\caption{Michaels Modular RNN (mRNN), a simulated grasping circuit. The emergent dynamics of the
+three modules correspond well to natural neural activity measured from primate AIP, F5, M1 regions,
+respectively, from the same task. Visual (VGGNet) features forward propagate through the
+network, conditioning the grasp for the object of the particular size, shape, and location.}
+\centering
+\label{fig:michaels}
+\end{figure}
 
 The design of the circuit is intended to resemble a vision-to-grasp pipeline, essentially
 representing the visual processing needed to reach the hand to the appropriate position for
 the grasp, and to form the hand properly for grasping the particular shape of object. The
-emergent dynamics of the artificial network's ``modules'', once train, correspond roughly
-to the AIP, F5, and M1 portions of the monkey subjects' brains. Notably, the activity of
-the module receiving the visual inputs resembles the AIP activity of the monkey subject
-from the same trials. Likewise, the second and third modules resemble the natural activity
-from the monkey's F5 and M1 regions, respectively. The network dynamics show a number of
-other correspondences to the monkeys' natural brain activity as well, as detailed in the paper.
+emergent dynamics of the artificial network's ``modules'', once trained, correspond roughly
+to the AIP, F5, and M1 portions of the monkey subjects' brains. `Correspond' here, notably,
+refers to the fact that the activity of the module receiving the visual inputs resembles
+the AIP activity of the monkey subject from the same trials. Likewise, the second and
+third modules resemble the natural activity from the monkey's F5 and M1 regions, respectively.
+The emergent network dynamics show a number of other correspondences to the monkeys' natural
+brain activity as well, as detailed in the paper.
 
-Notably, the simulated circuit's activity shows a relatively clear separation of the
-object shapes.  That is - the visual information input to the network differentiates one trial
+Importantly, the simulated circuit's activity shows a relatively clear separation of the
+object shapes. That is - the visual information input to the network differentiates one trial
 from another, and the circuit is able to leverage that information to properly condition
-the hand shape trajectory for grasping the object of that trial's particular shape, size, and location.
-The visual information forward-propagates through the network, through successive processing
-steps, where it is eventually leveraged to recapitulate the grasp appropriate for the object
-represented by the input visual features. As we will note below: in the absense of this
+the hand shape trajectory for grasping the object of that trial's particular shape, size, and
+location. The visual information forward-propagates through the network, through successive
+processing steps, where it is eventually leveraged to recapitulate the grasp appropriate
+for the object represented by the input visual features. It follows, then, that the classes
+are separable in some way by observing the distinct ways that the mRNN is activated by the
+classes' corresponding visual inputs. As we will note below: in the absense of this
 visual information forward propagating, the circuit can at-best learn a loss-minimizing grasp,
 stereotyped across all object sizes and shapes. Such a grasp bears some resemblance to all
 grasps the given monkey performed, due to all trials being a reach-to-grasp preceded by a
 waiting period, but performance suffers drastically.
 
-As a result, simulating a brain lesion in terms of this artificial network results in error modes
-which resemble a natural lesion of certain regions of a primate brain.
+As a result, simulating a brain lesion in terms of this artificial network results in error
+modes which resemble a natural lesion of certain regions of a primate brain. For example, if we
+alter the network by zeroing the outputs of some of the first (input, or AIP) module's neurons,
+the reaching motion generally succeeds, but the finger muscle velocities show a high degree
+of error - effectively implying that the subject can reach to grasp, but cannot form a
+grasp appropriate for the object. That suggests that losing a portion of the cortical
+machinery needed to translate or forward-propagate visual object shape information
+to movement-related cortex can result in a reduced ability to form the hand properly for
+the grasp, though positioning of the hand may still roughly succeed. Muscle spasticity of
+the hand is also a common symptom of certain strokes in primates, and indeed many who
+suffer from it are still able to position their hand, even while being unable to form
+it properly for a grasp \cite{khanna.openloop}. In that sense, the error mode of this
+simulated lesion closely resembles natural stroke symptoms. Likewise, if we simulate a
+``stroke'' of a portion of the output module of the Michaels mRNN, roughly
+corresponding to M1, we see a more wholesale loss of movement, affecting even the
+ability to reach for the grasp. See Fig. \ref{fig:lesion} for examples.
 
-...
-* Lesioning properties
+\begin{figure}
+	\centering
+	\begin{subfigure}[b]{0.46\textwidth}
+	    \centering
+	    \includegraphics[width=\textwidth]{lesion_trajs.pdf}
+	    \caption{inner1}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.46\textwidth}
+	    \centering
+	    \includegraphics[width=\textwidth]{lesion_hand.pdf}
+	    \caption{inner1}
+	\end{subfigure}
+	\hfill
+	\caption{Two simple graphs}
+	\label{fig:lesion}
+\end{figure}
+
 
 * Long-running dynamics
 
@@ -392,8 +438,6 @@ Training
 * Can co-adapt with the brain, as it changes
 
 * Split by lesion design
-
-* Show example where AIP/F5 lesioned and how that affects performance
 
 * Any point in showing sensitivity to observation or stim dim?
 
