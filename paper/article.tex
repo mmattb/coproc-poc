@@ -311,14 +311,29 @@ indicate if our design is improving in a direction that will later allow for
 real deployments. Otherwise, our design may be adapting to the pecularities of
 the simulation, without becoming more useful for the real world.
 
-The simulated circuit, from Michaels et al. \cite{michaels.mrnn, susillo.mrnn}, was trained
-to resemble the grasping circuits of monkey subjects engaged in a reach-to-grasp task. It
-consists of a ``modular'' vanilla RNN (mRNN), and a linear readout layer. The inputs are visual
-features intended to capture the view the monkeys had during the task, i.e. 3D renderings of
-the same objects which the monkeys grasped. The outputs are muscle length velocities for the
-should, arm, and hand of the monkey during the trial. The natural velocities were captured
-with a motion capturing glove, and the artificial neural network is trained to recapitulate
-those grasping motions. Data and trained models from this work were supplied to us by the lead
+An example of such an approach is Bernal et al. \cite{bernal.sim}. In this work, the
+authors use a simulated spiking neural network to train a stimulation agent, much
+like the work we present here. Their stimulation agent sought to restore the network's
+control of a simulated arm, to reach a target. As they point out, we have a limited
+ability to probe a neural circuit \textit{in vivo} in order to perform learning. As
+a result, we first need to design our approach through the use of an admissible
+simulation. The authors in this case simulated lesions by effectively removing parts
+of their simulated network, or by cutting connections between parts of the network.
+Likewise here, we use an established design for an artificial neural circuit which performs
+a grasping task, whose architecture and training methods were designed specifically
+to result in naturalistic dynamics.
+
+The simulated circuit, from Michaels et al. \cite{michaels.mrnn}, was trained
+to resemble the grasping circuits of monkey subjects engaged in a delayed reach-to-grasp task.
+Its design draws on a body of literature focused on architectures and training methods for RNNs which
+seek to create artificial neural circuits that have activation dynamics similar to natural circuits,
+including delayed grasping tasks \cite{susillo.mrnn}. The Michaels circuit consists of a
+``modular'' vanilla RNN (mRNN), and a linear readout layer. The inputs are visual features
+intended to capture the view the monkeys had during the task, i.e. 3D renderings of the same
+objects which the monkeys grasped. The outputs are muscle length velocities for the should,
+arm, and hand of the monkey during the trial. The natural velocities were captured with a
+motion capturing glove, and the artificial neural network was trained to recapitulate those
+grasping motions. Data and trained models from this work were supplied to us by the lead
 author Jonathan Michaels, for the purpose of our present simulation. See Fig. \ref{fig:michaels}.
 
 \begin{figure}
@@ -340,11 +355,11 @@ refers to the fact that the activity of the module receiving the visual inputs r
 the AIP activity of the monkey subject from the same trials. Likewise, the second and
 third modules resemble the natural activity from the monkey's F5 and M1 regions, respectively.
 The emergent network dynamics show a number of other correspondences to the monkeys' natural
-brain activity as well, as detailed in the paper.
+brain activity as well, as detailed in that paper.
 
 Importantly, the simulated circuit's activity shows a relatively clear separation of the
-object shapes. That is - the visual information input to the network differentiates one trial
-from another, and the circuit is able to leverage that information to properly condition
+object shapes. That is - the visual information input to the network that differentiates
+one trial from another is leveraged by the circuit to properly condition
 the hand shape trajectory for grasping the object of that trial's particular shape, size, and
 location. The visual information forward-propagates through the network, through successive
 processing steps, where it is eventually leveraged to recapitulate the grasp appropriate
@@ -356,53 +371,69 @@ stereotyped across all object sizes and shapes. Such a grasp bears some resembla
 grasps the given monkey performed, due to all trials being a reach-to-grasp preceded by a
 waiting period, but performance suffers drastically.
 
-As a result, simulating a brain lesion in terms of this artificial network results in error
-modes which resemble a natural lesion of certain regions of a primate brain. For example, if we
+\subsubsection{Simulated lesions cause real world failure modes}
+Simulating a brain lesion in terms of this artificial network results in error
+modes that resemble a natural lesion of certain regions of a primate brain. For example, if we
 alter the network by zeroing the outputs of some of the first (input, or AIP) module's neurons,
 the reaching motion generally succeeds, but the finger muscle velocities show a high degree
-of error - effectively implying that the subject can reach to grasp, but cannot form a
+of error - effectively implying that the subject can somewhat reach to grasp, but cannot form a
 grasp appropriate for the object. That suggests that losing a portion of the cortical
-machinery needed to translate or forward-propagate visual object shape information
+machinery needed to translate or forward-propagate object shape information
 to movement-related cortex can result in a reduced ability to form the hand properly for
 the grasp, though positioning of the hand may still roughly succeed. Muscle spasticity of
 the hand is also a common symptom of certain strokes in primates, and indeed many who
 suffer from it are still able to position their hand, even while being unable to form
 it properly for a grasp \cite{khanna.openloop}. In that sense, the error mode of this
-simulated lesion closely resembles natural stroke symptoms. Likewise, if we simulate a
+simulated lesion closely resembles natural stroke symptoms. Conversely, if we simulate a
 ``stroke'' of a portion of the output module of the Michaels mRNN, roughly
 corresponding to M1, we see a more wholesale loss of movement, affecting even the
 ability to reach for the grasp. See Fig. \ref{fig:lesion} for examples.
 
 \begin{figure}
 	\centering
-	\begin{subfigure}[b]{0.46\textwidth}
+	\begin{subfigure}[c]{0.65\textwidth}
 	    \centering
 	    \includegraphics[width=\textwidth]{lesion_trajs.pdf}
-	    \caption{inner1}
+	    \caption{Example muscle trajectories during a single trial, for one hand and shoulder muscle}
 	\end{subfigure}
 	\hfill
-	\begin{subfigure}[b]{0.46\textwidth}
+	\begin{subfigure}[c]{0.32\textwidth}
 	    \centering
 	    \includegraphics[width=\textwidth]{lesion_hand.pdf}
-	    \caption{inner1}
+	    \caption{Proportion of loss attributable to hand muscles}
 	\end{subfigure}
 	\hfill
-	\caption{Two simple graphs}
+	\caption{Lesion designs which prevent forward propagation of object shape information
+	         differentially impact hand pose. Loss here is a mean squared error (MSE) loss,
+		 measured relative to the circuit's trajectories prior to the lesion.}
 	\label{fig:lesion}
 \end{figure}
 
+The co-processor's task in our simulation will be to identify the appropriate information,
+read from the mRNN's activations, for conditioning the stimulation. The co-processor seeks
+to effectively bridge across the lesion, forward propatating the object shape information,
+indirectly, through the use of stimulation.
 
-* Long-running dynamics
+In our experiments below, we demonstrate our co-processor design on two types of
+simulated lesions:
+\begin{itemize}
+	\item \textbf{Connection-based:} we prevent the forward and backward propagation of
+	      information between the ``F5'' and ``M1'' modules, effectively representing a
+	      severing of the connections between the two.
+	\item \textbf{Output-based:} we force the output of some proportion of ``M1'' neurons
+	      to zero, effectively removing them from the network.
+\end{itemize}
 
+TODO: show example trajectories for both
 
-** Potentially helpful to look for a simulated neural circuit which has internal dynamics, i.e. information propagation, which is demonstrably similar to natural circuits.
-** \cite{kao.sim} Likeness of RNNs to natural circuits re: dynamics
-** Cite Michaels, and those upstream from him (Susillo?) re: RNNs. Networks have internal dynamics that result from both inputs and internal connectivity. Perturbations at t=0 affect outputs at t=N.
-** \cite{bernal.sim} Simulation of spiking neural network, learning stimulation regime. Use of a biomimetic
-  simulation to develop and evaluate a neural controller. Use of lesion model.
+\subsubsection{Simulated network exhibits long running dynamics}
+Just as the co-processor must adapt to 
 
-Example: Use of actual stimulation of an actual brain, together with offline deep learning,
-to search for an optimal visual input: \cite{walker.inception}
+\subsubsection{Sensor model}
+asdf
+
+\subsubsection{Stimulation model}
+asdf
 
 * Overview of test bed
 ** Michaels model .
