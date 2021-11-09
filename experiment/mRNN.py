@@ -52,6 +52,7 @@ class MichaelsRNN(nn.Module):
         self.activation_func = activation_func()
         self.output_dim = output_dim
         self._cuda = cuda
+        self.last_stimulus = None
 
         npm = self.num_neurons_per_module
         numn = self.num_neurons
@@ -371,7 +372,8 @@ class MichaelsRNN(nn.Module):
 
     def get_next_stimulus(self):
         # (batch_size, num_neurons)
-        return self.stimulus.get_next()
+        self.last_stimulus = self.stimulus.get_next()
+        return self.last_stimulus
 
 
 class MichaelsDataset(Dataset):

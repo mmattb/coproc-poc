@@ -387,11 +387,14 @@ it properly for a grasp \cite{khanna.openloop}. In that sense, the error mode of
 simulated lesion closely resembles natural stroke symptoms. Conversely, if we simulate a
 ``stroke'' of a portion of the output module of the Michaels mRNN, roughly
 corresponding to M1, we see a more wholesale loss of movement, affecting even the
-ability to reach for the grasp. See Fig. \ref{fig:lesion} for examples.
+ability to reach for the grasp. Finally, if we ``disconnect'' communications between the
+F5 and M1 modules, we see a failure similar to an AIP lesion: movement is generally
+achieved, but we see a disproportionate impact on hand pose.
+See Fig. \ref{fig:lesion} for examples.
 
 \begin{figure}
 	\centering
-	\begin{subfigure}[c]{0.65\textwidth}
+	\begin{subfigure}[c]{0.62\textwidth}
 	    \centering
 	    \includegraphics[width=\textwidth]{lesion_trajs.pdf}
 	    \caption{Example muscle trajectories during a single trial, for one hand and shoulder muscle}
@@ -404,62 +407,110 @@ ability to reach for the grasp. See Fig. \ref{fig:lesion} for examples.
 	\end{subfigure}
 	\hfill
 	\caption{Lesion designs which prevent forward propagation of object shape information
-	         differentially impact hand pose. Loss here is a mean squared error (MSE) loss,
+	         differentially impact hand pose. Loss here is an L2 distance
 		 measured relative to the circuit's trajectories prior to the lesion.}
 	\label{fig:lesion}
 \end{figure}
 
 The co-processor's task in our simulation will be to identify the appropriate information,
 read from the mRNN's activations, for conditioning the stimulation. The co-processor seeks
-to effectively bridge across the lesion, forward propatating the object shape information,
+to effectively bridge across the lesion, forward propagating the object shape information,
 indirectly, through the use of stimulation.
 
-In our experiments below, we demonstrate our co-processor design on two types of
+In our experiments below, we demonstrate our co-processor design on three types of
 simulated lesions:
 \begin{itemize}
 	\item \textbf{Connection-based:} we prevent the forward and backward propagation of
 	      information between the ``F5'' and ``M1'' modules, effectively representing a
 	      severing of the connections between the two.
-	\item \textbf{Output-based:} we force the output of some proportion of ``M1'' neurons
-	      to zero, effectively removing them from the network.
+	\item \textbf{Output-based (AIP):} we force the output of some proportion of ``AIP''
+	      neurons to zero, effectively removing them from the network. This results in a
+	      loss of object shape information and, as we will see below, causes the co-processor
+	      to be unable to differentiate objects.
+	\item \textbf{Output-based (M1):} we force the output of some proportion of ``M1''
+	      neurons to zero, causing a more holisitic loss of movement.
 \end{itemize}
 
-TODO: show example trajectories for both
-
 \subsubsection{Simulated network exhibits long running dynamics}
-Just as the co-processor must adapt to 
+Just as the co-processor must adapt to the lesion, it must also adapt to the network
+dynamics.
 
-\subsubsection{Sensor model}
-asdf
+\begin{figure}
+	\centering
+	\begin{subfigure}[c]{0.48\textwidth}
+	    \centering
+	    \includegraphics[width=\textwidth]{perturbe_single.pdf}
+	    \caption{}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[c]{0.48\textwidth}
+	    \centering
+	    \includegraphics[width=\textwidth]{perturbe_dist.pdf}
+	    \caption{}
+	\end{subfigure}
+	\hfill
+	\caption{Instantaneous perturbations of a random sample (n=10) of M1 neurons at time t=200 results in long-running effects on output.}
+	\label{fig:dynamics}
+\end{figure}
+
+
+\subsubsection{Observation model}
+** Observation model
+*** Spatio-temporal smoothing
+
+\begin{figure}
+\includegraphics[width=\textwidth]{stim_and_obs.png}
+\caption{Example of stimulation and observation for a single trial}
+\centering
+\label{fig:stim_and_obs}
+\end{figure}
 
 \subsubsection{Stimulation model}
-asdf
-
-* Overview of test bed
-** Michaels model .
-** Lesion designs
-*** Lesion examples, i.e. hand velocity more affected than shoulder velocity.
-*** Disconnect modules vs lesion M1, and the effects
 ** Stimulation design
-*** Spatio-temporal smoothing
-** Observation model
 
-* Overview of the four experiments:
-** Vanilla
-** Co-adaptive with connectivity loss
-** Co-adaptive with partial M1 loss
-** Co-adaptive with data reuse
+
+\subsection{Experiments}
+Summary of tunables:
+\begin{itemize}
+	\item Learning rate schedules
+	\item Activation functions
+	\item Obs function dimensionality
+	\item Stim dimensionality
+	\item Dimensionality of EN, CPN
+\end{itemize}
+
+Experiment types:
+\begin{itemize}
+	\item Connectivity lesion
+	\item Co-adaptive with connectivity lesion
+	\item Co-adaptive with partial M1 loss
+	\item Co-adaptive with partial AIP loss
+	\item Co-adaptive with data reuse
+\end{itemize}
+
+
+\begin{figure}
+\includegraphics[width=\textwidth]{cpn_michaels_arch_labeled.eps}
+\caption{Experiment architecture overview}
+\centering
+\label{fig:exp_overview}
+\end{figure}
 
 \subsection{Training the Model}
-Training
-** Alternate training EN and CPN
-*** Train an EN
-**** Training the EN until predictive power reaches a threshold, based on current task performance
-**** Training regime based on most recent CPN, similar CPNS (noise added to params), and white noise stimulation
-**** Single batch of data from applying current CPN set and white noise to the brain, EN fit to ``offline'' it over maining epochs
-**** Predictive power alone is not sufficient for use in training the CPN: we need to form the batch as above, otherwise training is unstable.
-*** Train the CPN
-**** Backprop through the EN, effectively using the EN's prediction as ground truth
+Alternate training EN and CPN.
+\begin{itemize}
+	\item Train an EN
+		\begin{itemize}
+			\item Training the EN until predictive power reaches a threshold, based on current task performance
+			\item Training regime based on most recent CPN, similar CPNS (noise added to params), and white noise stimulation
+			\item Single batch of data from applying current CPN set and white noise to the brain, EN fit to ``offline'' it over maining epochs
+			\item Predictive power alone is not sufficient for use in training the CPN: we need to form the batch as above, otherwise training is unstable.
+		\end{itemize}
+	\item Train the CPN
+		\begin{itemize}
+			\item Backprop through the EN, effectively using the EN's prediction as ground truth
+		\end{itemize}
+\end{itemize}
 
 \section{Results}
 
@@ -469,10 +520,6 @@ Training
 * Can co-adapt with the brain, as it changes
 
 * Split by lesion design
-
-* Any point in showing sensitivity to observation or stim dim?
-
-* Try regularization variation?
 
 * White noise and noised params
 ** Learning instability
