@@ -79,12 +79,12 @@ neural co-processor for the first time, through the use of a simulation. We
 explore some of the core algorithms that may allow co-processors to successfully
 learn and to adapt to non-stationarity in both the brain and sensors.
 \textit{Approach} We provide the first proof-of-concept of a neural co-processor that
-leverages deep learning, through the use of a simulated neural circuit
+leverages deep learning, through the use of a simulated neural circuit.
 That circuit performs reach-to-grasp task, based on visual input, and is designed to
 closely resemble a similar circuit in a primate brain \cite{michaels.mrnn}. We simulate
-a variety of lesions by altering the model, and then demonstrate a co-processor's ability
+a variety of lesions by altering the model, and then demonstrate our co-processor's ability
 to restore lost function through ``stimulation'' of that model. We further test the
-ability of a co-processor to adapt its stimulation as the simulated brain undergoes changes.
+ability of our co-processor to adapt its stimulation as the simulated brain undergoes changes.
 \textit{Main results} Our simulated co-processor successfully co-adapts with the neural
 circuit to accomplish the external reaching task. The co-processor framework
 demonstrated here adapts to a variety of lesion types, and to ongoing changes in the
@@ -302,39 +302,43 @@ the use of a nonlinear activation function.
 
 \subsection{Simulation Overview}
 We demonstrate our approach here using a simulated grasping circuit.
-A detailed simulation such as this allows us to explore some of the critical details in
-training a co-processor of this design. By first doing such exploration in
-simulation, we are able to rapidly and cheaply iterate on our design, prior to
-any \textit{in vivo} experiments. In order for the simulation to be
-admissible, we need to ensure it has some properties that allow it to strongly
-indicate if our design is improving in a direction that will later allow for
-real deployments. Otherwise, our design may be adapting to the pecularities of
-the simulation, without becoming more useful for the real world.
+A detailed simulation such as this allows us to explore some of the critical
+architectural details and training algorithms for a co-processor of this type.
+By first doing such exploration in simulation, we are able to rapidly and
+cheaply iterate on our design, prior to any \textit{in vivo} experiments.
+In order for the simulation to be admissible, we need to ensure it has some
+properties that allow it to strongly indicate if our design is improving in
+a direction that will later allow for real deployments. Otherwise, our
+design may be adapting to the pecularities of the simulation, without
+becoming more useful for the real world.
 
-An example of such an approach is Bernal et al. \cite{bernal.sim}. In this work, the
+An example of such a simulation approach is Bernal et al. \cite{bernal.sim}. In this work, the
 authors use a simulated spiking neural network to train a stimulation agent, much
 like the work we present here. Their stimulation agent sought to restore the network's
-control of a simulated arm, to reach a target. As they point out, we have a limited
-ability to probe a neural circuit \textit{in vivo} in order to perform learning. As
-a result, we first need to design our approach through the use of an admissible
-simulation. The authors in this case simulated lesions by effectively removing parts
-of their simulated network, or by cutting connections between parts of the network.
-Likewise here, we use an established design for an artificial neural circuit which performs
-a grasping task, whose architecture and training methods were designed specifically
-to result in naturalistic dynamics.
+control of a simulated arm, to reach a target, after a simulated lesion was applied.
+As they point out, we have a limited ability to probe a neural circuit \textit{in vivo}
+in order to perform learning. As a result, we first need to design our approach through
+the use of an admissible simulation. The authors in this case simulated lesions by
+effectively removing parts of their simulated network, or by cutting connections between
+parts of the network. Likewise here, we use an established design for an artificial
+neural circuit which performs a grasping task, whose architecture and training methods
+were designed specifically to result in naturalistic dynamics.
 
 The simulated circuit, from Michaels et al. \cite{michaels.mrnn}, was trained
 to resemble the grasping circuits of monkey subjects engaged in a delayed reach-to-grasp task.
 Its design draws on a body of literature focused on architectures and training methods for RNNs which
 seek to create artificial neural circuits that have activation dynamics similar to natural circuits,
 including delayed grasping tasks \cite{susillo.mrnn}. The Michaels circuit consists of a
-``modular'' vanilla RNN (mRNN), and a linear readout layer. The inputs are visual features
-intended to capture the view the monkeys had during the task, i.e. 3D renderings of the same
-objects which the monkeys grasped. The outputs are muscle length velocities for the should,
-arm, and hand of the monkey during the trial. The natural velocities were captured with a
-motion capturing glove, and the artificial neural network was trained to recapitulate those
-grasping motions. Data and trained models from this work were supplied to us by the lead
-author Jonathan Michaels, for the purpose of our present simulation. See Fig. \ref{fig:michaels}.
+``modular'' vanilla RNN (mRNN), and a linear readout layer. Each ``module'' consists of 100 vanilla
+RNN neurons, with a non-linearity applied on the outputs. The modules are internally fully connected,
+and are connected to each other sparsely (10\% connectivity). The inputs are visual features
+intended to capture the view the monkeys had during the task, specifically VGGNet features from 3D
+renderings of the same objects which the monkeys grasped. The outputs are muscle length
+velocities for the should, arm, and hand of the monkey during the trial. The natural
+velocities were captured with a motion capturing glove, and the artificial neural network
+was trained to recapitulate those grasping motions. Data and trained models from this work
+were supplied to us by the lead author Jonathan Michaels, for the purpose of our present
+simulation. See Fig. \ref{fig:michaels}.
 
 \begin{figure}
 \includegraphics[width=\textwidth]{michaels.eps}
@@ -355,7 +359,7 @@ refers to the fact that the activity of the module receiving the visual inputs r
 the AIP activity of the monkey subject from the same trials. Likewise, the second and
 third modules resemble the natural activity from the monkey's F5 and M1 regions, respectively.
 The emergent network dynamics show a number of other correspondences to the monkeys' natural
-brain activity as well, as detailed in that paper.
+brain activity as well, as detailed in the paper.
 
 Importantly, the simulated circuit's activity shows a relatively clear separation of the
 object shapes. That is - the visual information input to the network that differentiates
@@ -384,15 +388,17 @@ the grasp, though positioning of the hand may still roughly succeed. Muscle spas
 the hand is also a common symptom of certain strokes in primates, and indeed many who
 suffer from it are still able to position their hand, even while being unable to form
 it properly for a grasp \cite{khanna.openloop}. In that sense, the error mode of this
-simulated lesion closely resembles natural stroke symptoms. Conversely, if we simulate a
-``stroke'' of a portion of the output module of the Michaels mRNN, roughly
+simulated lesion closely resembles natural stroke symptoms, though the simulation is not
+intended to constitute a physical model of a lesion, i.e. to directly explain the
+connection between hand spasticity and the lesion. Conversely, if we
+lesion of a portion of the output module of the Michaels mRNN, roughly
 corresponding to M1, we see a more wholesale loss of movement, affecting even the
 ability to reach for the grasp. Finally, if we ``disconnect'' communications between the
 F5 and M1 modules, we see a failure similar to an AIP lesion: movement is generally
 achieved, but we see a disproportionate impact on hand pose.
 See Fig. \ref{fig:lesion} for examples.
 
-\begin{figure}
+\begin{figure}[h]
 	\centering
 	\begin{subfigure}[c]{0.62\textwidth}
 	    \centering
@@ -420,43 +426,62 @@ indirectly, through the use of stimulation.
 In our experiments below, we demonstrate our co-processor design on three types of
 simulated lesions:
 \begin{itemize}
-	\item \textbf{Connection-based:} we prevent the forward and backward propagation of
-	      information between the ``F5'' and ``M1'' modules, effectively representing a
-	      severing of the connections between the two.
 	\item \textbf{Output-based (AIP):} we force the output of some proportion of ``AIP''
 	      neurons to zero, effectively removing them from the network. This results in a
 	      loss of object shape information and, as we will see below, causes the co-processor
 	      to be unable to differentiate objects.
+	\item \textbf{Connection-based:} we prevent the forward and backward propagation of
+	      information between the ``F5'' and ``M1'' modules, effectively representing a
+	      severing of the connections between the two.
 	\item \textbf{Output-based (M1):} we force the output of some proportion of ``M1''
 	      neurons to zero, causing a more holisitic loss of movement.
 \end{itemize}
 
 \subsubsection{Simulated network exhibits long running dynamics}
-Just as the co-processor must adapt to the lesion, it must also adapt to the network
-dynamics.
+Just as the co-processor must adapt to the lesion, it must also adapt to the dynamics of
+the network it is stimulating. Natural neural networks as well as our stimulated network
+exhibit long running dynamics, which our CPN and EN must account for in their learning.
+A perturbation of a network (i.e. due to stimulation) will cause changes in neuron
+activations long after the stimulation is applied, sometimes far from the site of
+stimulation. Our simulated grasping circuit exhibits the same behavior.
 
-\begin{figure}
+To illustrate this, suppose we applied a small, one-time, instantaneous perturbation
+of the hidden state of 10 randomly chosen neurons in the output module at some point
+in time during a trial. If we repeat that experiment many times, we can see what the
+distribution of long- running effects tends to look like.
+
+In Fig. \ref{fig:dynamics} we can see that even a single, one-time perturbation in
+the network has effects dozens of time steps later. Our co-processor will need to
+account for these, since stimulation is intended to cause perturbations in a network.
+To successfully aid in grasping, the co-processor will need to account for these
+dynamics. As we will show in the next subsection, the problem the co-processor faces
+is in-fact even harder than this, due to a stimulation model that includes both
+spatial and temporal smoothing.
+
+\begin{figure}[h]
 	\centering
 	\begin{subfigure}[c]{0.48\textwidth}
 	    \centering
 	    \includegraphics[width=\textwidth]{perturbe_single.pdf}
-	    \caption{}
+	    \caption{Example trial}
 	\end{subfigure}
 	\hfill
 	\begin{subfigure}[c]{0.48\textwidth}
 	    \centering
 	    \includegraphics[width=\textwidth]{perturbe_dist.pdf}
-	    \caption{}
+	    \caption{Distribution of effects across n=1000 samples}
 	\end{subfigure}
 	\hfill
-	\caption{Instantaneous perturbations of a random sample (n=10) of M1 neurons at time t=200 results in long-running effects on output.}
+	\caption{Instantaneous perturbations of a random sample (n=10) of M1
+	         neurons at time t=200 results in long-running effects on output.}
 	\label{fig:dynamics}
 \end{figure}
 
+\subsubsection{Stimulation model}
+TODO: overview of spatio-temporal smoothing, connect to figure.
 
 \subsubsection{Observation model}
-** Observation model
-*** Spatio-temporal smoothing
+TODO: overview of spatial / gaussian convolution concept, connect to $fig:stim_and_obs$.
 
 \begin{figure}
 \includegraphics[width=\textwidth]{stim_and_obs.png}
@@ -464,9 +489,6 @@ dynamics.
 \centering
 \label{fig:stim_and_obs}
 \end{figure}
-
-\subsubsection{Stimulation model}
-** Stimulation design
 
 
 \subsection{Experiments}
@@ -488,7 +510,6 @@ Experiment types:
 	\item Co-adaptive with data reuse
 \end{itemize}
 
-
 \begin{figure}
 \includegraphics[width=\textwidth]{cpn_michaels_arch_labeled.eps}
 \caption{Experiment architecture overview}
@@ -496,7 +517,7 @@ Experiment types:
 \label{fig:exp_overview}
 \end{figure}
 
-\subsection{Training the Model}
+\subsection{Training the Co-Processor}
 Alternate training EN and CPN.
 \begin{itemize}
 	\item Train an EN
@@ -505,36 +526,47 @@ Alternate training EN and CPN.
 			\item Training regime based on most recent CPN, similar CPNS (noise added to params), and white noise stimulation
 			\item Single batch of data from applying current CPN set and white noise to the brain, EN fit to ``offline'' it over maining epochs
 			\item Predictive power alone is not sufficient for use in training the CPN: we need to form the batch as above, otherwise training is unstable.
+			\item White noise and noised params
+			\item ** Learning instability
+			\item ** Predictive power isn't enough
+			\item ** Illustrate this
 		\end{itemize}
 	\item Train the CPN
 		\begin{itemize}
 			\item Backprop through the EN, effectively using the EN's prediction as ground truth
 		\end{itemize}
+
+	\item Data recycling/reuse
 \end{itemize}
 
+\begin{figure}[h]
+\includegraphics[width=0.5\textwidth]{pseudocode.png}
+\caption{Pseudocode of the Training Method}
+\centering
+\label{fig:pseudocode}
+\end{figure}
+
 \section{Results}
+\begin{itemize}
+	\item Task performance improves drastically.
+		\begin{itemize}
+			\item Fig: normalized task loss vs CPN training epoch
+			\item Fig: normalized task loss vs training epoch
+			\item Fig: normalized task loss vs training epoch
+			\item Split by experiment
+		\end{itemize}
+	\item Fine tuning takes a long time
+	\item Object classes separate. Fig: sep vs experiment vs epoch
+	\item Can co-adapt with the brain, as it changes
+	\item Training efficiency analysis. Show num epochs with and without recycling.
+\end{itemize}
 
-* Task performance improves drastically
-* Fine tuning takes a long time
-* Object classes separate
-* Can co-adapt with the brain, as it changes
-
-* Split by lesion design
-
-* White noise and noised params
-** Learning instability
-** Predictive power isn't enough
-** Illustrate this
-
-* Training efficiency analysis
-
-\section{Discussion}
-* Training efficiency
-* Spectrum from simple low dimensional stimulation vectors today to higher dimensional future
-* Toward in vivo application
-
-\section{Conclusion}
-asdf
+\section{Discussion and Conclusion}
+\begin{itemize}
+	\item Training efficiency
+	\item Spectrum from simple low dimensional stimulation vectors today to higher dimensional future
+	\item Toward in vivo application
+\end{itemize}
 
 \section{Acknowledgements}
 Ganguly, Priya, Anca, Justin, Luciano
