@@ -61,7 +61,7 @@ class CPN_EN_CoProc(experiment.CoProc):
         else:
             self.log_dir = None
 
-        self.round_thresh = 3
+        self.round_thresh = 5
         # A list of up to round_thresh length
         #  Each item is a tuple (actuals, targets, trial_end, stim list, obs list)
         #   The list is trial_len length.
@@ -147,7 +147,7 @@ class CPN_EN_CoProc(experiment.CoProc):
         done = False
         checkpoint_eidx = 0
         en_is_ready = False
-        while not en_is_ready and checkpoint_eidx < 3000:
+        while not en_is_ready and checkpoint_eidx < 1000:
             for bidx in range(self.round_thresh):
                 actuals, targets, trial_end, stims, brain_data = self.saved_data[bidx]
 
