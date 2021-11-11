@@ -341,12 +341,25 @@ were supplied to us by the lead author Jonathan Michaels, for the purpose of our
 simulation. See Fig. \ref{fig:michaels}.
 
 \begin{figure}
-\includegraphics[width=\textwidth]{michaels.eps}
-\caption{Michaels Modular RNN (mRNN), a simulated grasping circuit. The emergent dynamics of the
-three modules correspond well to natural neural activity measured from primate AIP, F5, M1 regions,
-respectively, from the same task. Visual (VGGNet) features forward propagate through the
-network, conditioning the grasp for the object of the particular size, shape, and location.}
-\centering
+	\centering
+	\begin{subfigure}[c]{0.69\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{michaels.eps}
+		\caption{Michaels Modular RNN (mRNN), a simulated grasping circuit. The emergent dynamics of the
+		three modules correspond well to natural neural activity measured from primate AIP, F5, M1 regions,
+		respectively, from the same task. Visual (VGGNet) features forward propagate through the
+		network, conditioning the grasp for the object of the particular size, shape, and location.}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[c]{0.30\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{mRNN_J.png}
+		\caption{Connectivity matrix $J$. Note the within-module connections
+		(on the diagonal) are fully connected, and connections to adjacent
+		modules are sparse $10\%$.}
+	\end{subfigure}
+	\hfill
+\caption{Architecture of the Michaels mRNN}
 \label{fig:michaels}
 \end{figure}
 
@@ -439,7 +452,7 @@ simulated lesions:
 
 \subsubsection{Simulated network exhibits long running dynamics}
 Just as the co-processor must adapt to the lesion, it must also adapt to the dynamics of
-the network it is stimulating. Natural neural networks as well as our stimulated network
+the network it is stimulating. Natural neural networks as well as our simulated network
 exhibit long running dynamics, which our CPN and EN must account for in their learning.
 A perturbation of a network (i.e. due to stimulation) will cause changes in neuron
 activations long after the stimulation is applied, sometimes far from the site of
@@ -518,7 +531,36 @@ Experiment types:
 \end{figure}
 
 \subsection{Training the Co-Processor}
-Alternate training EN and CPN.
+In all experiments, training the co-processor requires a careful interleaving of
+EN and CPN training epochs. EN training epochs concentrate on updating the EN,
+based on observations of the effect of stimulation on the simulated network.
+The loss function when training the EN is the MSE loss between the actual and
+predicted output of the mRNN (i.e. muscle velocities). We then use the EN
+to train the CPN during the CPN training epochs. During that time, we backpropagate
+the MSE loss between the EN output, and target output, to the CPN. See Fig.
+\ref{fig:training}.
+
+TODO: explain EN training
+
+\begin{figure}
+	\centering
+	\begin{subfigure}[c]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{backprop_en.eps}
+		\caption{EN training phase: backpropagate actual vs predicted}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[c]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{backprop_cpn.eps}
+		\caption{CPN training phase: backpropagate actual vs target MSE loss, via EN, to CPN. This effectively treats the EN output as the actual, and thus the EN must be trained first.}
+	\end{subfigure}
+	\hfill
+\caption{Two Phase Training Regime}
+\label{fig:training}
+\end{figure}
+
+
 \begin{itemize}
 	\item Train an EN
 		\begin{itemize}
