@@ -338,7 +338,8 @@ velocities for the should, arm, and hand of the monkey during the trial. The nat
 velocities were captured with a motion capturing glove, and the artificial neural network
 was trained to recapitulate those grasping motions. Data and trained models from this work
 were supplied to us by the lead author Jonathan Michaels, for the purpose of our present
-simulation. See Fig. \ref{fig:michaels}.
+simulation. We re-implemented his models' logic in PyTorch, and loaded his trained parameters
+into it, for one of his subjects, arbitrarily chosen. See Fig. \ref{fig:michaels}.
 
 \begin{figure}
 	\centering
@@ -491,46 +492,146 @@ spatial and temporal smoothing.
 \end{figure}
 
 \subsubsection{Stimulation model}
-TODO: overview of spatio-temporal smoothing, connect to figure.
+
+\begin{figure}[h]
+	\includegraphics[width=0.45\textwidth]{stim_single.png}
+	\caption{Spatial and temporal smoothing of a single 16 dimensional,
+	         randomized $\theta$, onto 100 simulated neurons.
+		 Color values indicate the magnitude of the value summed into
+		 each neuron's hidden state in that time step. After $t=0$,
+		 $\theta$ is the zero vector.}
+	\centering
+	\label{fig:stim_single}
+\end{figure}
+
+In order to inject another aspect of realism into our simulation, we subject
+the co-processor to a stimulation model, rather than allowing it to directly
+influence the hidden state of the simulated network's neurons. Our stimulation
+model includes aspects of both spatial and temporal smoothing.
+
+In our experiments, we stimulate only the output module, since this co-processor's
+purpose is to improve external task performance, which it is able to do with
+only stimulation of the output module of the network. It is conceivable that
+a co-processor could stimulate other areas of the brain to improve task performance
+downstream, or to probe the brain to better reveal the user's intent (i.e. object
+shape), but we did not explore those possibilities in this paper.
+
+The stimulation function $S$ receives as inputs the stimulation parameters $\theta$
+provided by the CPN, which it accumulates in an internal memory. Each time step,
+it outputs a modifier to the internal states of all neurons in the output module,
+based on the current state of memory in the function object. That memory allows
+the stimulation function to perform temporal smoothing. Specifically, we used a
+simple exponential decay model where the function reads its current state of memory,
+sums in the new parameters, and then decays each memory element towards $0.0$ at some
+rate. Roughly speaking, this design intends to approximate the notion of dissipation: the
+effect of stimulation is not instantaneous, but rather decays with time, as charge
+dissipates into the surrounding area.
+
+Likewise, the stimulation function maps the relatively low dimensional stimulation
+parameter vector $\theta$ onto the M1 cells which it stimulates. In our experiments,
+our stimulation parameters $\theta$ had 16 dimensions, which we found was
+sufficient to allow significant improvement in task performance. The stimulation
+function uses a simple Gaussian smoothing to map those parameters onto the simulated
+M1 neurons. Each parameter represents, in a sense, an electrode located along a single
+spatial dimension, whose stimulation affects the neurons in its vicinity more than
+it affects others, according to each neuron's Mahalanobis distance from it. The neurons
+are aligned along that dimension arbitrarily. We fix the width of the Gaussians
+arbitrarily to $\sigma=1.75$. Note that we do not attempt to model the physical
+layout of our simulated neurons, but simply want to disallow our co-processor
+from having an unrealistically high degree of spatial resolution.
+
+Thus, the governing equations of the stimulation become:
+
+\begin{equation}
+\alpha_{t} = \tau\alpha_{t-1} + \theta_{t}
+\end{equation}
+\begin{equation}
+s_{t} = C(\alpha_{t})
+\end{equation}
+
+\begin{itemize}
+	\item $\alpha$: the 16 dimensional internal activation, or memory
+        of our stimulation
+	\item $\tau$: our decay rate, which we set arbitrarily to $0.7$
+	\item $C$: a precalculated $100 x 16$ matrix which provides our
+	Gaussian smoothing
+	\item $s_{t}$: the stimulation we apply to each neuron at the
+	given time step.
+\end{itemize}
+
+The governing equations of the simulated network then become:
+
+\begin{equation}
+x_{t+1} = Jx_{t} + Iv_{t} + s_{t}
+\end{equation}
+\begin{equation}
+a_{t} = tanh(x_{t})
+\end{equation}
+\begin{equation}
+y_{t} = La_{t} + b
+\end{equation}
+
+\begin{itemize}
+	\item $x$: the hidden state of each neuron
+	\item $J$: the recurrence weight matrix
+	\item $I$: the input response matrix
+	\item $L$, $b$: the parameters of the linear readout
+	\item $y$: the output of the network
+\end{itemize}
+
+See Fig. \ref{fig:stim_single} for a visual depiction of an example where
+$\theta$ is non-zero at $t=0$, and zero for all other times, in order to see how
+stimulation is applied across space and time. In Fig. \ref{fig:stim_and_obs},
+we see stimulation applied during the simulation, in a real trial. In this case,
+the trial is one where $50\%$ of M1 neurons are lesioned to have zero output.
+Observations of the network's hidden state (explained in the next section) are taken
+from the first two modules, and stimulation is applied to the last module. This fact
+is intended to capture the difficulties with observing the same cortex that you are
+stimulating, due to stimulation artifacts. The trial we show depicts stimulation
+supplied by a highly trained co-processor, where task performance has been
+largely restored. We explain this experiment in more detail below.
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\textwidth]{stim_and_obs.png}
+	\caption{Example of stimulation and observation for a single trial. Here, M1
+	has been lesioned 50\%, as seen in the zero (light blue) hidden states. We
+	gather observations only from the AIP and F5 modules, as we explain in
+	Section \ref{sec:experiments}. Stimulation is applied to M1, to drive the
+	network output.}
+	\label{fig:stim_and_obs}
+\end{figure}
 
 \subsubsection{Observation model}
-TODO: overview of spatial / gaussian convolution concept, connect to $fig:stim_and_obs$.
+Our observation model likewise relies on a notion of electrodes spread along
+a single spatial dimension. As with stimulation, this is not intended to
+capture true physical relationships between neurons and electrodes, but
+rather to act as a dimensionality reduction that isn't designed to specifically
+to favor task success, such as PCA. We treat the neurons of each module as
+occupying their own space, with 16 electrodes arrayed along each.
 
-\begin{figure}
-\includegraphics[width=\textwidth]{stim_and_obs.png}
-\caption{Example of stimulation and observation for a single trial}
-\centering
-\label{fig:stim_and_obs}
-\end{figure}
+We use a similar Gaussian-based approach as with stimulation, but in this
+case our approach looks much like a Gaussian convolution, where the Gaussian
+kernel is centered at each electrode position. Each `electrode' is read out
+as a weighted average of all neurons in the given module, with weights being
+provided by the Gaussian kernel. As above, refer to Fig. \ref{fig:stim_and_obs}
+for a visual example.
 
+\subsubsection{Brain co-adaptation}
+To demonstrate the co-processor's ability to adapt to the non-stationarity
+of the brain, we also change it throughout the co-processor's training.
+Specifically, we simulate the brain's co-adaptation with the stimulation
+to cooperatively solve the problem, as the stimulation is also changing
+through the CPN's training.
 
-\subsection{Experiments}
-Summary of tunables:
-\begin{itemize}
-	\item Learning rate schedules
-	\item Activation functions
-	\item Obs function dimensionality
-	\item Stim dimensionality
-	\item Dimensionality of EN, CPN
-\end{itemize}
+We achieve this through a simple error backpropagation, using PyTorch's
+implementation of the $Adam$ optimizer. With each trial, task loss is
+calculated and backpropagated into the mRNN, allowing it to adapt to
+its inputs, one of which is the stimulation being applied. The learning
+rate for the optimizer is set arbitrarily to a relatively low rate of
+$1e-7$.
 
-Experiment types:
-\begin{itemize}
-	\item Connectivity lesion
-	\item Co-adaptive with connectivity lesion
-	\item Co-adaptive with partial M1 loss
-	\item Co-adaptive with partial AIP loss
-	\item Co-adaptive with data reuse
-\end{itemize}
-
-\begin{figure}
-\includegraphics[width=\textwidth]{cpn_michaels_arch_labeled.eps}
-\caption{Experiment architecture overview}
-\centering
-\label{fig:exp_overview}
-\end{figure}
-
-\subsection{Training the Co-Processor}
+\subsection{Training Algorithm}
 In all experiments, training the co-processor requires a careful interleaving of
 EN and CPN training epochs. EN training epochs concentrate on updating the EN,
 based on observations of the effect of stimulation on the simulated network.
@@ -560,7 +661,7 @@ TODO: explain EN training
 \label{fig:training}
 \end{figure}
 
-
+Alternate training EN and CPN.
 \begin{itemize}
 	\item Train an EN
 		\begin{itemize}
@@ -588,7 +689,44 @@ TODO: explain EN training
 \label{fig:pseudocode}
 \end{figure}
 
+\subsection{Experiments}
+\label{sec:experiments}
+
+Using the simulation described above, we perform three experiments to
+demonstrate the co-processor's ability to learn:
+\begin{itemize}
+	\item 50\% AIP loss
+	\item 100\% connectivity lesion between the F5 and M1 modules
+	\item 50\% M1 loss
+\end{itemize}
+
+Additionally, we perform each of the ...
+
+Summary of tunables:
+\begin{itemize}
+	\item Learning rate schedules
+	\item Activation functions
+	\item Obs function dimensionality
+	\item Stim dimensionality
+	\item Dimensionality of EN, CPN
+\end{itemize}
+
+\begin{figure}
+\includegraphics[width=\textwidth]{cpn_michaels_arch_labeled.eps}
+\caption{Experiment architecture overview}
+\centering
+\label{fig:exp_overview}
+\end{figure}
+
 \section{Results}
+
+\begin{figure}[h]
+\includegraphics[width=\textwidth]{results_standin.png}
+\caption{Loss and class separation vs training epoch}
+\centering
+\label{fig:results}
+\end{figure}
+
 \begin{itemize}
 	\item Task performance improves drastically.
 		\begin{itemize}
