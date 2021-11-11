@@ -85,6 +85,7 @@ DEFAULT_OBS_OUT_DIM = 20
 DEFAULT_OBS_SIGMA = 1.75
 DEFAULT_NUM_STIM_CHANNELS = 16
 DEFAULT_STIM_SIGMA = 2.175
+DEFAULT_STIM_PAD_RIGHT_NEURONS = 200
 DEFAULT_OUT_DIM = 50
 DEFAULT_HOLDOUT_PCT = 0.2
 
@@ -146,7 +147,9 @@ def get(
     cpn_activation_type=DEFAULT_ACTIVATION_TYPE,
     num_neurons_per_module=DEFAULT_NUM_NEURONS_PER_MODULE,
     num_stim_channels=DEFAULT_NUM_STIM_CHANNELS,
+    num_stim_neurons=None,
     stim_sigma=DEFAULT_STIM_SIGMA,
+    stim_pad_right_neurons=DEFAULT_STIM_PAD_RIGHT_NEURONS,
     stim_retain_grad=False,
     obs_out_dim=DEFAULT_OBS_OUT_DIM,
     obs_sigma=DEFAULT_OBS_SIGMA,
@@ -167,10 +170,14 @@ def get(
     else:
         raise ValueError(f"Unrecognized observer type: {observer_type}")
 
+    if num_stim_neurons is None:
+        num_stim_neurons = num_neurons_per_module
+
     if stimulation_type is stim.StimulationType.one_to_one:
         stimulus = stimulation_type.value(
-            num_neurons_per_module,
-            num_neurons_per_module,
+            num_stim_neurons,
+            num_stim_neurons,
+            pad_right_neurons=stim_pad_right_neurons,
         )
     elif stimulation_type is stim.StimulationType.gaussian_alpha:
         if cuda:
@@ -179,16 +186,18 @@ def get(
         # NOTE: can add the num_stim_channels and sigma arg above
         stimulus = stimulation_type.value(
             num_stim_channels,
-            num_neurons_per_module,
+            num_stim_neurons,
+            pad_right_neurons=stim_pad_right_neurons,
             sigma=stim_sigma,
         )
     elif stimulation_type is stim.StimulationType.gaussian_exp:
         stimulus = stimulation_type.value(
             num_stim_channels,
-            num_neurons_per_module,
+            num_stim_neurons,
             batch_size=1,  # Will be reset before use
             sigma=stim_sigma,
             retain_grad=stim_retain_grad,
+            pad_right_neurons=stim_pad_right_neurons,
             cuda=cuda,
         )
     else:

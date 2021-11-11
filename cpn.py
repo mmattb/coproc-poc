@@ -18,7 +18,7 @@ g_logger = logging.getLogger("cpn")
 
 
 class CPN_EN_CoProc(experiment.CoProc):
-    def __init__(self, cfg, log_dir=None):
+    def __init__(self, cfg, log_dir=None, recycle_thresh=None):
         self.cfg = cfg
 
         in_dim, stim_dim, out_dim, cuda = cfg.unpack()
@@ -61,8 +61,8 @@ class CPN_EN_CoProc(experiment.CoProc):
         else:
             self.log_dir = None
 
-        self.round_thresh = 5
-        # A list of up to round_thresh length
+        self.recycle_thresh = recycle_thresh
+        # A list of up to recycle_thresh length
         #  Each item is a tuple (actuals, targets, trial_end, stim list, obs list)
         #   The list is trial_len length.
         #     Each item is a stim or obs
@@ -119,7 +119,7 @@ class CPN_EN_CoProc(experiment.CoProc):
             )
             update_task_loss = False
 
-            if self.epoch_type == EpochType.EN:
+            if self.epoch_type == EpochType.EN and self.recycle_thresh:
                 new_save = (actuals, targets, trial_end, self.stims, self.brain_data)
                 self.saved_data.append(new_save)
 
@@ -148,7 +148,7 @@ class CPN_EN_CoProc(experiment.CoProc):
         checkpoint_eidx = 0
         en_is_ready = False
         while not en_is_ready and checkpoint_eidx < 1000:
-            for bidx in range(self.round_thresh):
+            for bidx in range(self.recycle_thresh):
                 actuals, targets, trial_end, stims, brain_data = self.saved_data[bidx]
 
                 for tidx in range(trial_len):
@@ -225,7 +225,7 @@ class CPN_EN_CoProc(experiment.CoProc):
             else:
                 self.epoch_type = EpochType.EN
 
-            if len(self.saved_data) == self.round_thresh and not en_is_ready:
+            if len(self.saved_data) == self.recycle_thresh and not en_is_ready:
                 en_is_ready = self.train_en_closed_loop(loss_history,
                     next_is_validation)
 

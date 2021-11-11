@@ -43,33 +43,30 @@ def get_coadapt_config(cuda=None, **kwargs):
 
 def get_m1_lesion_config(cuda=None, **kwargs):
     lesion_type = lesion.LesionType.outputs
-    lesion_args = (0, 50)
+    # Lesion the neurons with idxs 50-100, which are in M1
+    lesion_args = (50, 100)
     return get_config(
         cuda=cuda,
         coadapt=True,
         drop_m1=True,
         lesion_type=lesion_type,
         lesion_args=lesion_args,
+        num_stim_neurons=50,
+        stim_pad_right_neurons=250,
         **kwargs,
     )
 
 
-def get_config(recover_after_lesion=False, coadapt=False, cuda=None, **kwargs):
+def get_config(recover_after_lesion=False, coadapt=False, num_stim_neurons=None,
+        stim_pad_right_neurons=config.DEFAULT_STIM_PAD_RIGHT_NEURONS,
+        cuda=None, **kwargs):
     """
     Args:
         - cuda (str, torch.device, or None): None for CPU, or a string like "0" specifying a GPU
                               device. This will be passed to the CUDA_VISIBLE_DEVICES env var.
                               Reference: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#env-vars
     Returns:
-        - in_dim (int): dimensionality of the data coming from the brain
-        - stim_dim (int): dimensionality of stimulation vector, which we get
-                          from the co-proc
-        - out_dim (int): dimensionality of the task: muscle velocities in our
-                         case
-        - cuda (torch.device, or None): will be a torch.device if we are using
-                                        GPU. Note your model/Module will need to
-                                        use this to push any parameters to GPU
-                                        if the experiment is running on GPU.
+        A config.Config, which contains the parameterization of this experiment.
     """
     if isinstance(cuda, str):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -82,6 +79,8 @@ def get_config(recover_after_lesion=False, coadapt=False, cuda=None, **kwargs):
 
     cfg = config.get(
         recover_after_lesion=recover_after_lesion,
+        num_stim_neurons=num_stim_neurons,
+        stim_pad_right_neurons=stim_pad_right_neurons,
         coadapt=coadapt,
         cuda=cuda_out,
         **kwargs,
