@@ -423,7 +423,7 @@ See Fig. \ref{fig:lesion} for examples.
 	\begin{subfigure}[c]{0.32\textwidth}
 	    \centering
 	    \includegraphics[width=\textwidth]{lesion_hand.pdf}
-	    \caption{Proportion of loss attributable to hand muscles}
+	    \caption{Ratio of hand muscle MSE losses vs. overall MSE losses, for different lesion types}
 	\end{subfigure}
 	\hfill
 	\caption{Lesion designs which prevent forward propagation of object shape information
@@ -494,13 +494,23 @@ spatial and temporal smoothing.
 \subsubsection{Stimulation model}
 
 \begin{figure}[h]
-	\includegraphics[width=0.45\textwidth]{stim_single.png}
+	\begin{subfigure}[c]{0.45\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{stim_single.png}
+		\caption{$\sigma=1.875$}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[c]{0.45\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{stim_single2.png}
+		\caption{$\sigma=2.875$}
+	\end{subfigure}
+
 	\caption{Spatial and temporal smoothing of a single 16 dimensional,
 	         randomized $\theta$, onto 100 simulated neurons.
 		 Color values indicate the magnitude of the value summed into
 		 each neuron's hidden state in that time step. After $t=0$,
 		 $\theta$ is the zero vector.}
-	\centering
 	\label{fig:stim_single}
 \end{figure}
 
@@ -629,19 +639,45 @@ implementation of the $Adam$ optimizer. With each trial, task loss is
 calculated and backpropagated into the mRNN, allowing it to adapt to
 its inputs, one of which is the stimulation being applied. The learning
 rate for the optimizer is set arbitrarily to a relatively low rate of
-$1e-7$.
+$1e-7$. The learning rate was not chosen in a principled way, since
+we are not aware of a principled way of choosing it. However, we reason
+that it should be lower than the co-processor by orders of magnitude due
+to the rapidity by which an ANN can be retrained.
+
+\subsubsection{Simulating recovery prior to co-processor use}
+We sought to additonally pre-train the mRNN after applying the lesion in
+order to simulate stroke recovery. For simulated lesions which zero the outputs
+of neurons, the mRNN is, unfortunately, not an appropriate model.
+We know that strokes can cause damage from which the subject, in many cases,
+cannot recover. The mRNN model has sufficient redundancy built into it that
+lesioning the outputs of neurons leaves enough remaining degrees of freedom
+that a nearly full recovery can occur, unless so many neurons are lesioned
+that no stimulation could be effective. We go into this further in the
+Discussion section below.
+
+We can, however, simulate pre-recovery in the case of a lesion that excludes
+communication between the F5 and M1 modules. In that case, object shape information
+cannot propagate forward in the network, in order to condition the hand for
+grasping. The mRNN can, in pre-recovery, learn a stereotyped grasp, at which
+point the co-processor's job will be to forward-propagate that information.
+We explore this in one of our experiments, explained below.
 
 \subsection{Training Algorithm}
 In all experiments, training the co-processor requires a careful interleaving of
 EN and CPN training epochs. EN training epochs concentrate on updating the EN,
-based on observations of the effect of stimulation on the simulated network.
+based on observations of the effect of stimulation on the simulated network's output.
 The loss function when training the EN is the MSE loss between the actual and
 predicted output of the mRNN (i.e. muscle velocities). We then use the EN
 to train the CPN during the CPN training epochs. During that time, we backpropagate
-the MSE loss between the EN output, and target output, to the CPN. See Fig.
-\ref{fig:training}.
+the MSE loss between the EN's predicted output, and target output, to the CPN.
+See Fig. \ref{fig:training}.
 
-TODO: explain EN training
+\begin{figure}
+\includegraphics[width=\textwidth]{cpn_michaels_arch_labeled.eps}
+\caption{Experiment architecture overview}
+\centering
+\label{fig:exp_overview}
+\end{figure}
 
 \begin{figure}
 	\centering
@@ -661,33 +697,116 @@ TODO: explain EN training
 \label{fig:training}
 \end{figure}
 
-Alternate training EN and CPN.
-\begin{itemize}
-	\item Train an EN
-		\begin{itemize}
-			\item Training the EN until predictive power reaches a threshold, based on current task performance
-			\item Training regime based on most recent CPN, similar CPNS (noise added to params), and white noise stimulation
-			\item Single batch of data from applying current CPN set and white noise to the brain, EN fit to ``offline'' it over maining epochs
-			\item Predictive power alone is not sufficient for use in training the CPN: we need to form the batch as above, otherwise training is unstable.
-			\item White noise and noised params
-			\item ** Learning instability
-			\item ** Predictive power isn't enough
-			\item ** Illustrate this
-		\end{itemize}
-	\item Train the CPN
-		\begin{itemize}
-			\item Backprop through the EN, effectively using the EN's prediction as ground truth
-		\end{itemize}
+\subsubsection{EN training}
+For the EN to be useful, it must accurately predict the effect of stimulation
+produced by the CPN. In addition to that, backpropagating through it must yield
+gradients which train the CPN to output more useful stimulus. We discovered that
+this latter property does not necessarily occur simply by virtue of the former.
+We have found that an EN can be trained to extreme levels of predictive power, even
+on white noise stimulation - to orders of magnitude lower loss than the task loss -
+while at the same time backpropagation through it yields gradients which are not
+useful for training the CPN. As a result, the CPN exhibits unstable training.
+We have thus far been unable to discover a way to measure and optimize for this second
+property, though pursuing it may be a fruitful subject of future ML research. Instead
+of attempting to train an EN directly to exhibit this property, we discovered a
+training regime that reliably makes it appear.
 
-	\item Data recycling/reuse
-\end{itemize}
+The central concept of our training regime is to provide a carefully chosen variety of
+training examples, and to use heavy weight regularization, in order to force
+the EN to generalize well to stimulation which it hasn't yet seen. We hypothesize that
+the crux of our EN training problem is one of over-fitting: that the EN may be trained
+to great predictive power on a set of stimulation examples, but that the effective
+dimensionality of the problem it is learning is comparatively quite high, due to both
+the dimensionality of our stimulation parameters $\theta$, and the dynamics of the
+network being stimulated. As a result, the hypersurface which it has fit to the training
+examples may exhibit gradients not reflective of reality.
 
-\begin{figure}[h]
-\includegraphics[width=0.5\textwidth]{pseudocode.png}
-\caption{Pseudocode of the Training Method}
-\centering
-\label{fig:pseudocode}
-\end{figure}
+First, and most significantly, we structure the training data set for each EN training epoch
+in a very specific way. Each epoch, we include examples from the current CPN, the current CPN
+with Gaussian-distributed mean-0 noise added to its parameters, and examples of white noise
+stimulation. We developed this structure under the believe that we needed to cover a sufficient
+variety of examples to prevent overfit, and to do so in a way that emphasizes the neighborhood
+in CPN parameter space of the current CPN. We initially attempted to pad our dataset with white
+noise examples alone, but that was not sufficient to stabilize CPN training, despite the EN's
+ability to reach a high predictive power. Adding in the addition of samples from the parameter
+space near the current CPN appears to help ensure that the EN is localized enough to give
+useful gradients for that area. As we will explain below, this produces an additional problem
+that the EN is to specialized to the local area of CPN parameter space, but we then solve
+that problem using EN retraining, interleaved with the CPN, as we will explain further below.
+
+Thus, we composed each batch of training data in the following way:
+
+\begin{table}[]
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Source}                                                                                                                            & \textbf{Proportion of dataset} \\ \hline
+Examples produced by the current CPN                                                                                                       & 10\%                           \\ \hline
+\begin{tabular}[c]{@{}l@{}}Examples produced by a copy of the current CPN,\\ with mean-0 random noise added to its parameters\end{tabular} & 60\%                           \\ \hline
+Examples of white noise stimulation                                                                                                        & 30\%                           \\ \hline
+\end{tabular}
+\end{table}
+
+Second, we use of PyTorch's $AdamW$ optimizer, which includes an option for weight regularization,
+and a carefully chosen learning rate schedule. Our intuition is to leverage regularization as
+one of the standard mitigations for overfit. To converge, the learning rate schedule also needs
+to be chosen carefully: a relatively high learning rate at first, dropping to a very low rate soon
+thereafter. Using too-low or too-high of a learning rate in any phase causes the EN learning
+to not converge. EN training proceeds until it reaches a threshold of prediction error, defined as
+a fraction of the current CPN's task loss.
+
+\subsubsection{CPN training}
+Once we discovered an effective way to train an EN, CPN training was straightforward. For this phase,
+We generate training examples using the current CPN alone. The EN generates predictions of the
+effect of those stimulations, and we backpropagate through the EN to generate training gradients
+for the CPN. As with the EN, we constitute the dataset with a large random sample of trials from
+the original Michaels task. See Fig. \ref{fig:training}.
+
+As with the EN, the choice of learning rate schedule for training the CPN is somewhat important.
+The CPN appears to train in two phases. In the first phase, it is largely learning the structure
+of the reach-to-grasp task, e.g. that the muscles need to stay still until the reach begins. During
+that phase, the learning rate can be quite high. Later, the CPN begins to learn the mapping between
+the object shape information observed from the simulated brain, and how that should map onto
+stimulation. That phase of the training takes much longer, and requires a learning rate 2-3
+orders of magnitude lower than in the first phase. We will cover this in some more detail in
+Section \ref{sec:results}.
+
+\subsubsection{Interleaved CPN/EN training, and adapting to non-stationarity}
+Having defined the training epochs for the EN and CPN, we can define a training
+algorithm on the basis of those two. We train the two in alteration, creating
+a new EN each time we enter an EN training period. We explored the possibility
+of reusing an existing EN by retraining it, for the purpose of training efficiency.
+However, we found that retraining an EN was no more fast than training a new one,
+and in-fact usually took longer, despite significant experimentation with learning
+rates.
+
+The key challenge we face is determining when an EN is no longer suitable for training the
+current CPN. Expiring an EN at the right time accomplishes two things. First, it ensures
+that our current EN is trained properly for the current CPN; without that, the CPN training
+will become unstable. Second, expiring the EN is how we adapt our learning to the brain's
+non-stationarity. At some point, the brain will have changed sufficiently for our EN to be
+out-of-date, and therefore requiring replacement.
+
+We solve this challenge through a simple set of metrics, which, when satisfied, indicate
+we need to transition to an EN training epoch. Our first metric simply captures the EN's
+declining predictive power. When the EN's prediction error reaches a point which is
+sufficiently above some ratio to the CPN's task loss, we expire the EN immediately.
+Second, we expire the EN if CPN loss does not improve (or gets worse) across a sufficient
+number of recent training steps. This resembles common stopping conditions in
+iterative learning: one stops when learning is no longer improving the model. Together,
+these two metrics appear effective in ensuring we expire the EN at the right time.
+
+Unfortunately, because we expire the EN rather than retraining it, and because we need
+to expire it so often, training is less efficient than it otherwise could be. We explore
+this some in Section \ref{sec:results}. In the next subsection, we illustrate one way we
+mitigate training inefficiency.
+
+TODO: pseudocode
+
+\subsubsection{Optimization: data reuse}
+One obvious
+
+\section{Results}
+\label{sec:results}
 
 \subsection{Experiments}
 \label{sec:experiments}
@@ -697,6 +816,7 @@ demonstrate the co-processor's ability to learn:
 \begin{itemize}
 	\item 50\% AIP loss
 	\item 100\% connectivity lesion between the F5 and M1 modules
+	\item 100\% connectivity lesion between the F5 and M1 modules without brain co-adpatation
 	\item 50\% M1 loss
 \end{itemize}
 
@@ -711,14 +831,6 @@ Summary of tunables:
 	\item Dimensionality of EN, CPN
 \end{itemize}
 
-\begin{figure}
-\includegraphics[width=\textwidth]{cpn_michaels_arch_labeled.eps}
-\caption{Experiment architecture overview}
-\centering
-\label{fig:exp_overview}
-\end{figure}
-
-\section{Results}
 
 \begin{figure}[h]
 \includegraphics[width=\textwidth]{results_standin.png}
