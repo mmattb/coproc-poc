@@ -56,6 +56,19 @@ def get_m1_lesion_config(cuda=None, **kwargs):
         **kwargs,
     )
 
+def get_aip_lesion_config(cuda=None, **kwargs):
+    lesion_type = lesion.LesionType.outputs
+    # Lesion the neurons with idxs 200-250, which are in AIP
+    lesion_args = (200, 250)
+    return get_config(
+        cuda=cuda,
+        coadapt=True,
+        drop_m1=True,
+        lesion_type=lesion_type,
+        lesion_args=lesion_args,
+        **kwargs,
+    )
+
 
 def get_config(recover_after_lesion=False, coadapt=False, num_stim_neurons=None,
         stim_pad_right_neurons=config.DEFAULT_STIM_PAD_RIGHT_NEURONS,
