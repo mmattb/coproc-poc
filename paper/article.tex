@@ -389,6 +389,21 @@ stereotyped across all object sizes and shapes. Such a grasp bears some resembla
 grasps the given monkey performed, due to all trials being a reach-to-grasp preceded by a
 waiting period, but performance suffers drastically.
 
+Clearly, training and deploying a neural co-processor in a true brain involves challenges we
+don't capture with this simulation. We don't intend this simulation to constitute evidence
+that our method will, for example, immediately translate to true restoration of fine-grained
+control for individual fingers of a stroke patient. One clear challenge with doing so would be the
+sheer dimensionality of natural brain dynamics, and how that compares to the resolution
+of stimulation the co-processor can learn to apply. There exists a clear mismatch between
+the dimensionality of the underlying problem, electrode technologies, and the amount of training
+data which can reasonably be collected to train a closed-loop neural controller. We argue
+that while this fact clearly creates a challenge for learning-based closed-loop stimulation,
+that nevertheless the insights we are generating through this simulation are likely to be
+applicable. As we show next, the simulation exhibits a number of properties that reflect
+a real world application, which our co-processor design must contend with. In the Discussion
+section below, we will explore how those insights are likely to lead to initial demonstrations
+of the co-processor approach on lower dimensional problems.
+
 \subsubsection{Simulated lesions cause real world failure modes}
 Simulating a brain lesion in terms of this artificial network results in error
 modes that resemble a natural lesion of certain regions of a primate brain. For example, if we
@@ -798,7 +813,7 @@ Section \ref{sec:results}.
 
 \subsubsection{Interleaved CPN/EN training, and adapting to non-stationarity}
 Having defined the training epochs for the EN and CPN, we can define a training
-algorithm on the basis of those two. We train the two in alteration, creating
+algorithm on the basis of those two. We train the two in alternation, creating
 a new EN each time we enter an EN training period. We explored the possibility
 of reusing an existing EN by retraining it, for the purpose of training efficiency.
 However, we found that retraining an EN was no more fast than training a new one,
@@ -811,6 +826,8 @@ that our current EN is trained properly for the current CPN; without that, the C
 will become unstable. Second, expiring the EN is how we adapt our learning to the brain's
 non-stationarity. At some point, the brain will have changed sufficiently for our EN to be
 out-of-date, and therefore requiring replacement.
+
+TODO: talk about retraining more
 
 We solve this challenge through a simple set of metrics, which, when satisfied, indicate
 we need to transition to an EN training epoch. Our first metric simply captures the EN's
@@ -885,7 +902,7 @@ Summary of tunables:
 \begin{itemize}
 	\item Training efficiency
 	\item Spectrum from simple low dimensional stimulation vectors today to higher dimensional future
-	\item Toward in vivo application
+	\item Toward in vivo application: example of lower dimensional problems this may help with
 \end{itemize}
 
 \section{Acknowledgements}
