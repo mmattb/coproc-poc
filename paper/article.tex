@@ -64,7 +64,7 @@ Seattle, WA 98105, USA}
 \end{indented}
 
 \begin{abstract}
-\textit{Objective} Brain co-processors\cite{rao.coproc} are devices which use artificial
+\textit{Objective} Brain co-processors \cite{rao.coproc} are devices which use artificial
 intelligence (AI) for closed-loop neurostimulation, to shape neural activity and to bridge
 injured neural circuits for targeted repair and rehabilitation. The co-processor framework
 offers a flexible approach to learning closed-loop stimulation policies that optimize for
@@ -80,7 +80,7 @@ explore some of the core algorithms that may allow co-processors to successfully
 learn and to adapt to non-stationarity in both the brain and sensors.
 \textit{Approach} We provide the first proof-of-concept of a neural co-processor that
 leverages deep learning, through the use of a simulated neural circuit.
-That circuit performs reach-to-grasp task, based on visual input, and is designed to
+That circuit performs a reach-to-grasp task, based on visual input, and is designed to
 closely resemble a similar circuit in a primate brain \cite{michaels.mrnn}. We simulate
 a variety of lesions by altering the model, and then demonstrate our co-processor's ability
 to restore lost function through ``stimulation'' of that model. We further test the
@@ -223,10 +223,10 @@ explore:
 	\item The properties of the artificial neural networks (ANNs) that are needed to
 	      successfully adapt to the long-running dynamics of a stimulated neural circuit,
 	      as well as to adapt to that circuit's ongoing changes.
-	\item Data-efficient methods for training these models, to better ensure we
-	      can train them with a biologically-realistic amount of data.
-	\item How we must train our stimulation model to make it effective in later
+	\item Training methods for our stimulation model, to make it effective in later
 	      training our stimulation agent.
+	\item Data reuse methods, to improve learning efficiency, to better ensure we
+	      can train them with a biologically-realistic amount of data.
 \end{itemize}
 
 \section{Method}
@@ -259,7 +259,7 @@ Our co-processor attempts to solve these with a pair of artificial neural networ
 We co-train the EN and CPN, with the goal of training a CPN whose output stimulation parameters
 improve task performance. By continually training both, they adapt to the brain as it changes,
 effectively allowing for brain-stimulator co-adaptation. The EN is a tool for training the CPN,
-giving us a way to back-propagate task error to the CPN. It outputs task-relevant
+giving us a way to backpropagate task error to the CPN. It outputs task-relevant
 metrics - a prediction of muscle velocities in our case - given measurements of neural
 activity, and the stimulation parameters output from the CPN. If the EN is trained in a
 particular way, and to a sufficient level of precision, it can be used as a function
@@ -293,12 +293,12 @@ architecture we find to be best suited to that job. First, our EN architecture
 is not linear, through the use of a $tanh$ activation function. That allows us
 to escape some of the limits in representational power of linear models, though
 we didn't deeply test a strictly linear approach.
-Second, LSTM cells are designed to better capture long-running network
-dynamics, and in our case we found that they were crucial for that reason:
-when using vanilla RNN cells, our co-processor wasn't able to train well.
-Compare that to the simpler cells commonly used in vanilla RNNs, which
-yield functionally the same approach as the linear state space model, less
-the use of a nonlinear activation function.
+Second, LSTM cells are designed to better capture the relevant asepcts of
+long-running network dynamics, and in our case we found that they were
+crucial for that reason: when using vanilla RNN cells, our co-processor
+wasn't able to train well. Compare that to the simpler cells commonly
+used in vanilla RNNs, which yield functionally the same approach as the
+linear state space model, less the use of a nonlinear activation function.
 
 \subsection{Simulation Overview}
 We demonstrate our approach here using a simulated grasping circuit.
@@ -330,11 +330,11 @@ Its design draws on a body of literature focused on architectures and training m
 seek to create artificial neural circuits that have activation dynamics similar to natural circuits,
 including delayed grasping tasks \cite{susillo.mrnn}. The Michaels circuit consists of a
 ``modular'' vanilla RNN (mRNN), and a linear readout layer. Each ``module'' consists of 100 vanilla
-RNN neurons, with a non-linearity applied on the outputs. The modules are internally fully connected,
+RNN neurons, with a nonlinearity applied on the outputs. The modules are internally fully connected,
 and are connected to each other sparsely (10\% connectivity). The inputs are visual features
-intended to capture the view the monkeys had during the task, specifically VGGNet features from 3D
-renderings of the same objects which the monkeys grasped. The outputs are muscle length
-velocities for the should, arm, and hand of the monkey during the trial. The natural
+intended to capture the view the monkeys had during the task, specifically VGGNet features \cite{simonyan.vgg},
+from 3D renderings of the same objects which the monkeys grasped. The outputs are muscle length
+velocities for the shoulder, arm, and hand of the monkey during the trial. The natural
 velocities were captured with a motion capturing glove, and the artificial neural network
 was trained to recapitulate those grasping motions. Data and trained models from this work
 were supplied to us by the lead author Jonathan Michaels, for the purpose of our present
@@ -442,13 +442,15 @@ simulated lesions:
 \begin{itemize}
 	\item \textbf{Output-based (AIP):} we force the output of some proportion of ``AIP''
 	      neurons to zero, effectively removing them from the network. This results in a
-	      loss of object shape information and, as we will see below, causes the co-processor
-	      to be unable to differentiate objects.
-	\item \textbf{Connection-based:} we prevent the forward and backward propagation of
+	      loss of object shape information until the brain co-adapts to the lesion.
+	\item \textbf{Connection-based:} we prevent the propagation of
 	      information between the ``F5'' and ``M1'' modules, effectively representing a
-	      severing of the connections between the two.
+	      severing of the connections between the two. Note that the sparse connections
+	      between them run both directions, and we are lesioning both.
 	\item \textbf{Output-based (M1):} we force the output of some proportion of ``M1''
-	      neurons to zero, causing a more holisitic loss of movement.
+	      neurons to zero, causing a more holisitic loss of movement. Here, the lesion
+	      may make it impossible for the co-processor to find a solution, unless the
+	      brain co-adapts with it to re-map the M1 neurons onto the muscle space.
 \end{itemize}
 
 \subsubsection{Simulated network exhibits long running dynamics}
@@ -460,15 +462,14 @@ activations long after the stimulation is applied, sometimes far from the site o
 stimulation. Our simulated grasping circuit exhibits the same behavior.
 
 To illustrate this, suppose we applied a small, one-time, instantaneous perturbation
-of the hidden state of 10 randomly chosen neurons in the output module at some point
+of the hidden state of 10 randomly chosen neurons in the output (M1) module at some point
 in time during a trial. If we repeat that experiment many times, we can see what the
 distribution of long- running effects tends to look like.
 
 In Fig. \ref{fig:dynamics} we can see that even a single, one-time perturbation in
 the network has effects dozens of time steps later. Our co-processor will need to
-account for these, since stimulation is intended to cause perturbations in a network.
-To successfully aid in grasping, the co-processor will need to account for these
-dynamics. As we will show in the next subsection, the problem the co-processor faces
+account for these dynamics, since stimulation is intended to cause perturbations
+in a network. As we will show in the next subsection, the problem the co-processor faces
 is in-fact even harder than this, due to a stimulation model that includes both
 spatial and temporal smoothing.
 
@@ -519,6 +520,14 @@ the co-processor to a stimulation model, rather than allowing it to directly
 influence the hidden state of the simulated network's neurons. Our stimulation
 model includes aspects of both spatial and temporal smoothing.
 
+The intent with this approach is not to create a realistic biophysical model. The
+mRNN model does not contain sufficient information to arrange the neurons in a
+simulated space, and to simulate how that may change the effects of stimulation.
+Instead, our stimulation model is merely attempting to make the co-processors task
+more realistic: it cannot precisely set the hidden state of every neuron,
+instantaneously and in each time step. Any stimulation it applies will diffuse
+across ``space'' and time.
+
 In our experiments, we stimulate only the output module, since this co-processor's
 purpose is to improve external task performance, which it is able to do with
 only stimulation of the output module of the network. It is conceivable that
@@ -546,9 +555,17 @@ M1 neurons. Each parameter represents, in a sense, an electrode located along a 
 spatial dimension, whose stimulation affects the neurons in its vicinity more than
 it affects others, according to each neuron's Mahalanobis distance from it. The neurons
 are aligned along that dimension arbitrarily. We fix the width of the Gaussians
-arbitrarily to $\sigma=1.75$. Note that we do not attempt to model the physical
-layout of our simulated neurons, but simply want to disallow our co-processor
-from having an unrealistically high degree of spatial resolution.
+arbitrarily to $\sigma=1.75$. We are not aware of a principled way of picking this
+value, and clearly if we set it to extreme values, it makes our simulation less useful.
+For example, if it is set to an extreme high value, the stimulation is effectively
+lower dimensional, resulting in a model corresponding to a stimulation technology that
+is inappropriately low resolution for our task, for example epidural stimulation.
+We experimented with this value, and found we could, unsurprisingly, set it to a high
+enough or low enough value that the co-processor cannot succeed, though the co-processor
+could succeed over a broad range of values. However, we could not conclude much from
+those experiments, because it isn't clear what those experiments ultimately indicate.
+As a result, we don't have a principled way of choosing an appropriate $\sigma$ value;
+we set it to a moderate, balanced value, and don't vary it.
 
 Thus, the governing equations of the stimulation become:
 
@@ -572,20 +589,21 @@ s_{t} = C(\alpha_{t})
 The governing equations of the simulated network then become:
 
 \begin{equation}
-x_{t+1} = Jx_{t} + Iv_{t} + s_{t}
+x_{t+1} = Jx_{t} + Iv_{t} + s_{t} + b
 \end{equation}
 \begin{equation}
 a_{t} = tanh(x_{t})
 \end{equation}
 \begin{equation}
-y_{t} = La_{t} + b
+y_{t} = La_{t} + l
 \end{equation}
 
 \begin{itemize}
 	\item $x$: the hidden state of each neuron
 	\item $J$: the recurrence weight matrix
 	\item $I$: the input response matrix
-	\item $L$, $b$: the parameters of the linear readout
+	\item $b$: the neuron activation bias
+	\item $L$, $l$: the parameters of the linear readout
 	\item $y$: the output of the network
 \end{itemize}
 
@@ -596,7 +614,7 @@ we see stimulation applied during the simulation, in a real trial. In this case,
 the trial is one where $50\%$ of M1 neurons are lesioned to have zero output.
 Observations of the network's hidden state (explained in the next section) are taken
 from the first two modules, and stimulation is applied to the last module. This fact
-is intended to capture the difficulties with observing the same cortex that you are
+is intended to capture the difficulties with observing the same region that you are
 stimulating, due to stimulation artifacts. The trial we show depicts stimulation
 supplied by a highly trained co-processor, where task performance has been
 largely restored. We explain this experiment in more detail below.
@@ -617,7 +635,7 @@ Our observation model likewise relies on a notion of electrodes spread along
 a single spatial dimension. As with stimulation, this is not intended to
 capture true physical relationships between neurons and electrodes, but
 rather to act as a dimensionality reduction that isn't designed to specifically
-to favor task success, such as PCA. We treat the neurons of each module as
+favor task success, such as PCA. We treat the neurons of each module as
 occupying their own space, with 20 electrodes arrayed along each.
 
 We use a similar Gaussian-based approach as with stimulation, but in this
@@ -650,10 +668,10 @@ order to simulate stroke recovery. For simulated lesions which zero the outputs
 of neurons, the mRNN is, unfortunately, not an appropriate model.
 We know that strokes can cause damage from which the subject, in many cases,
 cannot recover. The mRNN model has sufficient redundancy built into it that
-lesioning the outputs of neurons leaves enough remaining degrees of freedom
-that a nearly full recovery can occur, unless so many neurons are lesioned
-that no stimulation could be effective. We go into this further in the
-Discussion section below.
+lesioning the outputs of large numbers of neurons leaves enough remaining
+degrees of freedom that a nearly full recovery can occur, unless so many
+neurons are lesioned that no stimulation could be effective. We go into
+this further in the Discussion section below.
 
 We can, however, simulate pre-recovery in the case of a lesion that excludes
 communication between the F5 and M1 modules. In that case, object shape information
@@ -669,7 +687,9 @@ based on observations of the effect of stimulation on the simulated network's ou
 The loss function when training the EN is the MSE loss between the actual and
 predicted output of the mRNN (i.e. muscle velocities). We then use the EN
 to train the CPN during the CPN training epochs. During that time, we backpropagate
-the MSE loss between the EN's predicted output, and target output, to the CPN.
+the MSE loss between the EN's predicted output, and target output, to the CPN. In
+other words: we treat the EN output as a proxy to the true brain, allowing us
+to train the CPN, since we have no way to ``backpropagate through the brain'' itself.
 See Fig. \ref{fig:training}.
 
 \begin{figure}
@@ -703,13 +723,14 @@ produced by the CPN. In addition to that, backpropagating through it must yield
 gradients which train the CPN to output more useful stimulus. We discovered that
 this latter property does not necessarily occur simply by virtue of the former.
 We have found that an EN can be trained to extreme levels of predictive power, even
-on white noise stimulation - to orders of magnitude lower loss than the task loss -
+on random stimulation, and to orders of magnitude lower loss than the task loss,
 while at the same time backpropagation through it yields gradients which are not
-useful for training the CPN. As a result, the CPN exhibits unstable training.
-We have thus far been unable to discover a way to measure and optimize for this second
-property, though pursuing it may be a fruitful subject of future ML research. Instead
-of attempting to train an EN directly to exhibit this property, we discovered a
-training regime that reliably makes it appear.
+useful for training the CPN. As a result, if the EN is not trained in specific ways,
+the CPN exhibits unstable training. We have thus far been unable to discover a way
+to measure and optimize for this second property, though pursuing it may be a
+fruitful subject of future applied ML research. Instead of attempting to train an EN
+directly to exhibit this property, we discovered a training regime that reliably makes
+it occur.
 
 The central concept of our training regime is to provide a carefully chosen variety of
 training examples, and to use heavy weight regularization, in order to force
@@ -722,32 +743,37 @@ network being stimulated. As a result, the hypersurface which it has fit to the 
 examples may exhibit gradients not reflective of reality.
 
 First, and most significantly, we structure the training data set for each EN training epoch
-in a very specific way. Each epoch, we include examples from the current CPN, the current CPN
-with Gaussian-distributed mean-0 noise added to its parameters, and examples of white noise
-stimulation. We developed this structure under the believe that we needed to cover a sufficient
+in a very specific way. Each epoch, we include:
+\begin{itemize}
+	\item examples using stimulation from the current CPN
+	\item a small (100s) collection of CPNs which are copies of the current CPN, with
+	      Gaussian-distributed mean-0 noise added to their parameters
+	\item examples of white noise stimulation
+\end{itemize}
+We developed this structure under the belief that we needed to cover a sufficient
 variety of examples to prevent overfit, and to do so in a way that emphasizes the neighborhood
 in CPN parameter space of the current CPN. We initially attempted to pad our dataset with white
 noise examples alone, but that was not sufficient to stabilize CPN training, despite the EN's
 ability to reach a high predictive power. Adding in the addition of samples from the parameter
 space near the current CPN appears to help ensure that the EN is localized enough to give
 useful gradients for that area. As we will explain below, this produces an additional problem
-that the EN is to specialized to the local area of CPN parameter space, but we then solve
-that problem using EN retraining, interleaved with the CPN, as we will explain further below.
+that the EN is too specialized to the local area of CPN parameter space, but we then solve
+that problem using EN retraining, interleaved with the CPN training.
 
-Thus, we composed each batch of training data in the following way:
+After some experimentation, we composed each batch of EN training data in the following way:
 
-\begin{table}[]
+\begin{table}[h]
 \begin{tabular}{|l|l|}
 \hline
 \textbf{Source}                                                                                                                            & \textbf{Proportion of dataset} \\ \hline
-Examples produced by the current CPN                                                                                                       & 10\%                           \\ \hline
-\begin{tabular}[c]{@{}l@{}}Examples produced by a copy of the current CPN,\\ with mean-0 random noise added to its parameters\end{tabular} & 60\%                           \\ \hline
-Examples of white noise stimulation                                                                                                        & 30\%                           \\ \hline
+Current CPN                                                                                                       & 10\%                           \\ \hline
+\begin{tabular}[c]{@{}l@{}}Current CPN with parameter noise\end{tabular} & 60\%                           \\ \hline
+White noise stimulation                                                                                                        & 30\%                           \\ \hline
 \end{tabular}
 \end{table}
 
-Second, we use of PyTorch's $AdamW$ optimizer, which includes an option for weight regularization,
-and a carefully chosen learning rate schedule. Our intuition is to leverage regularization as
+Second, we use PyTorch's $AdamW$ optimizer, which includes an option for weight regularization.
+Additionally, we use a carefully chosen learning rate schedule. Our intuition is to leverage regularization as
 one of the standard mitigations for overfit. To converge, the learning rate schedule also needs
 to be chosen carefully: a relatively high learning rate at first, dropping to a very low rate soon
 thereafter. Using too-low or too-high of a learning rate in any phase causes the EN learning
@@ -756,7 +782,7 @@ a fraction of the current CPN's task loss.
 
 \subsubsection{CPN training}
 Once we discovered an effective way to train an EN, CPN training was straightforward. For this phase,
-We generate training examples using the current CPN alone. The EN generates predictions of the
+we generate training examples using the current CPN alone. The EN generates predictions of the
 effect of those stimulations, and we backpropagate through the EN to generate training gradients
 for the CPN. As with the EN, we constitute the dataset with a large random sample of trials from
 the original Michaels task. See Fig. \ref{fig:training}.
@@ -821,6 +847,8 @@ demonstrate the co-processor's ability to learn:
 \end{itemize}
 
 Additionally, we perform each of the ...
+
+TODO: train vs test
 
 Summary of tunables:
 \begin{itemize}
