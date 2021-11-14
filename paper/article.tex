@@ -224,16 +224,12 @@ deep learning, together with a data-efficient approach to training.
 Before attempting \textit{in vivo} experiments using such a model, we first demonstrate
 here a number of crucial design elements of it, through the use of a simulated
 grasping circuit, presented previously by Michaels et al. \cite{michaels.mrnn}. We
-explore:
-\begin{itemize}
-	\item The properties of the artificial neural networks (ANNs) that are needed to
-	      successfully adapt to the long-running dynamics of a stimulated neural circuit,
-	      as well as to adapt to that circuit's ongoing changes.
-	\item Training methods for our stimulation model, to make it effective in later
-	      training our stimulation agent.
-	\item Data reuse methods, to improve learning efficiency, to better ensure we
-	      can train them with a biologically-realistic amount of data.
-\end{itemize}
+explore the properties of the artificial neural networks (ANNs) that are needed to
+successfully adapt to the long-running dynamics of a stimulated neural circuit,
+as well as to adapt to that circuit's ongoing connectivity changes.
+We additionally present a training method our co-processor, allowing it to learn
+an optimal stimulation pattern that drives improvements in external task performance,
+while also adapting to the non-stationarity of the brain.
 
 \section{Method}
 
@@ -285,23 +281,27 @@ as an almost identical network, though with a different dimensionality, as we ex
 below. There is no strict requirement for the EN and CPN to be so similar, but we
 found this simple architecture to work well in our example.
 
-Note that the EN effectively constitutes a stimulation model. We initially attempted
-an EN architecture resembling the common linear time-invariant state space model of
-stimulation, as in e.g. Yang et al. \cite{shanechi.stimmodel}, which is a helpfully
-simple (linear) approach. That approach seeks to model neural network dynamics in
-terms of a stationary linear model, which, due in part to its simplicity and the
-number of techniques developed for it, lends itself to useful interpretations and
-analyses of those neural dynamics. We found, however, that the linear approach,
-as well as the related vanilla RNN approach with nonlinearities added, was not
-sufficiently expressive of long-term dependencies, such that the co-processor
-was capable of learning well.
+Note that the EN effectively constitutes a stimulation model. However, in the case that
+a co-processor attempts to optimize for task performance, as opposed to neural
+activity directly, the stimulation model predicts the effect of stimulation and neural
+dynamics on task performance, rather than modeling and predicting the neural response
+to stimulation alone. This provides the key functionality needed to train the CPN.
+
+We initially attempted an EN architecture using vanilla RNN cells, with a nonlineaerity.
+This approach resembles the common linear time-invariant state space model of
+stimulation, as in e.g. Yang et al. \cite{shanechi.stimmodel}, though it additionally
+incorporates a nonlinearity. That approach has the benefit of being simple, and familiar.
+We found, however, that the linear approach, as well as the related vanilla RNN
+approach with nonlinearities added, was not sufficiently expressive of long-term
+dependencies, such that the co-processor was capable of learning well.
 
 Separately, nonlinear LSTM models have also been applied to modeling natural
 neural networks, such as use in predicting local field potentials
 \cite{kim.lstm}, and for stimulation modeling \cite{guclu.lstm}.
 LSTM cells are designed to better capture the relevant aspects of
-long-running network dynamics, and in our case we found that they were crucial
-for that reason. As a result, both our EN and CPN models leverage LSTM cells.
+long-running network dynamics. We found that LSTM cells were crucial for
+enabling our co-processor to learn the long-running dynamics of the network
+it was stimulating. As a result, both our EN and CPN models leverage LSTM cells.
 
 \subsection{Simulation Overview}
 We demonstrate our approach here using a simulated grasping circuit.
@@ -398,14 +398,14 @@ that our method will, for example, immediately translate to true restoration of 
 control for individual fingers of a stroke patient. One clear challenge with doing so would be the
 sheer dimensionality of natural brain dynamics, and how that compares to the resolution
 of stimulation the co-processor can learn to apply. There exists a clear mismatch between
-the dimensionality of the underlying problem, electrode technologies, and the amount of training
+the dimensionality of the underlying problem, sensor and stimulator technologies, and the amount of training
 data which can reasonably be collected to train a closed-loop neural controller. We argue
 that while this fact clearly creates a challenge for learning-based closed-loop stimulation,
 that nevertheless the insights we are generating through this simulation are likely to be
-applicable. As we show next, the simulation exhibits a number of properties that reflect
-a real world application, which our co-processor design must contend with. In the Discussion
-section below, we will explore how those insights are likely to lead to initial demonstrations
-of the co-processor approach on lower dimensional problems.
+applicable. In the discussion below, we will explore how those insights are likely to lead
+to initial demonstrations of the co-processor approach on lower dimensional problems.
+As we show next, the simulation exhibits a number of properties that reflect
+a real world application, which our co-processor design must contend with.
 
 \subsubsection{Simulated lesions cause real world failure modes}
 Simulating a brain lesion in terms of this artificial network results in error
@@ -681,15 +681,14 @@ that it should be lower than the co-processor by orders of magnitude due
 to the rapidity by which an ANN can be retrained.
 
 \subsubsection{Simulating recovery prior to co-processor use}
-We sought to additonally pre-train the mRNN after applying the lesion in
+We sought to additonally re-train the mRNN after applying the lesion in
 order to simulate stroke recovery. For simulated lesions which zero the outputs
 of neurons, the mRNN is, unfortunately, not an appropriate model.
 We know that strokes can cause damage from which the subject, in many cases,
 cannot recover. The mRNN model has sufficient redundancy built into it that
 lesioning the outputs of large numbers of neurons leaves enough remaining
 degrees of freedom that a nearly full recovery can occur, unless so many
-neurons are lesioned that no stimulation could be effective. We go into
-this further in the Discussion section below.
+neurons are lesioned that no stimulation could be effective.
 
 We can, however, simulate pre-recovery in the case of a lesion that excludes
 communication between the F5 and M1 modules. In that case, object shape information
@@ -790,7 +789,7 @@ White noise stimulation                                                         
 \end{tabular}
 \end{table}
 
-Addiontally, we use PyTorch's $AdamW$ optimizer, which includes an option for weight regularization.
+Addtionaly, we use PyTorch's $AdamW$ optimizer, which includes an option for weight regularization.
 With that, we use a carefully chosen learning rate schedule. Our intuition is to leverage regularization as
 one of the standard mitigations for overfit. To converge, the learning rate schedule needs
 to be chosen carefully: a relatively high learning rate at first, dropping to a very low rate soon
@@ -902,7 +901,20 @@ TODO: summary of conclusions that will go here:
 	\item Show pre-recovery results; co-processor will improve beyond what recovery can achieve. (will run results this week)
 \end{itemize}
 
-\section{Discussion and Conclusion}
+\section{Discussion}
+\label{sec:discussion}
+
+We present here a first-of-its-kind demonstration of a novel design for neural co-processors,
+allowing for an AI agent to learn stimulation policies that improve a user's task performance.
+The central notion of the design is to leverage a stimulation model, whose purpose is to provide
+training feedback to an AI agent responsible for generating the stimulation. We present here
+a first demonstration of the learning algorithms and key properties
+
+We proposed X
+It did Y
+It was found that Z
+It has potential to A
+
 \begin{itemize}
 	\item Co-processors can be trained, and they can adapt to a difficult problem
 	\item One central issue that still needs work is data/training efficiency
@@ -923,8 +935,11 @@ it is necessary to make efficient use of the data we can acquire.
 One clear advantage of our co-processor approach is that, as in Bernal \cite{bernal.sim},
 we can train our stimulation agent to a great degree
 
+\section{Conclusion}
+...
 \subsection{Future application}
 (on a lower dimensional problem presumably)
+
 
 \section{Acknowledgements}
 TODO: funding sources
@@ -938,9 +953,6 @@ the present topic:
 	\item Justin Ong, University of Washington
 	\item Luciano De La Iglesia, University of Washington
 \end{itemize}
-
-\section{Ethical Statement}
-TODO.
 
 \section{References}
 \bibliographystyle{iopart-num}
