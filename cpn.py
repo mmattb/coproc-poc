@@ -147,7 +147,7 @@ class CPN_EN_CoProc(experiment.CoProc):
         done = False
         checkpoint_eidx = 0
         en_is_ready = False
-        while not en_is_ready and checkpoint_eidx < 30:
+        while not en_is_ready and checkpoint_eidx < 10:
             for bidx in range(self.recycle_thresh):
                 actuals, targets, trial_end, stims, brain_data = self.saved_data[bidx]
 

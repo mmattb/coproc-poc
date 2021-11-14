@@ -188,7 +188,13 @@ throughout the day, the circuit will respond differently to the same stimulus,
 as a result of differing inputs and ongoing activity. Stimulation
 therefore needs to be proactively adapted in response. This need is even
 greater over longer time scales as the effects of plasticity and ageing change
-the connectivity of the brain.
+the connectivity of the brain. Closed-loop stimulation may also provide means
+to better regulate the energy use of an implanted stimulator, allowing it to
+intelligently regulate when to apply stimulation, and to balance implant
+battery life and stimulation effect. Closed-loop stimulation also offers an
+opportunity minimize side-effects of stimulation, through real time regulation
+of the stimulation parameters, such as in the use of deep brain stimulation in
+Parkinson's patients.
 
 Closed-loop stimulation conditions stimulation on observations of brain activity,
 possibly allowing it to shape the neural activity more precisely, and to adapt to changes
@@ -279,26 +285,23 @@ as an almost identical network, though with a different dimensionality, as we ex
 below. There is no strict requirement for the EN and CPN to be so similar, but we
 found this simple architecture to work well in our example.
 
-Note that the EN effectively constitutes a stimulation model. Its design is
-somewhat motivated by the common linear time-invariant state space model of
+Note that the EN effectively constitutes a stimulation model. We initially attempted
+an EN architecture resembling the common linear time-invariant state space model of
 stimulation, as in e.g. Yang et al. \cite{shanechi.stimmodel}, which is a helpfully
 simple (linear) approach. That approach seeks to model neural network dynamics in
 terms of a stationary linear model, which, due in part to its simplicity and the
 number of techniques developed for it, lends itself to useful interpretations and
-analyses of those neural dynamics.
+analyses of those neural dynamics. We found, however, that the linear approach,
+as well as the related vanilla RNN approach with nonlinearities added, was not
+sufficiently expressive of long-term dependencies, such that the co-processor
+was capable of learning well.
 
-There are some key differences between that approach and the EN architecture we
-present here. Our EN's purpose is simply to train the CPN, so we pick an
-architecture we find to be best suited to that job. First, our EN architecture
-is not linear, through the use of a $tanh$ activation function. That allows us
-to escape some of the limits in representational power of linear models, though
-we didn't deeply test a strictly linear approach.
-Second, LSTM cells are designed to better capture the relevant asepcts of
-long-running network dynamics, and in our case we found that they were
-crucial for that reason: when using vanilla RNN cells, our co-processor
-wasn't able to train well. Compare that to the simpler cells commonly
-used in vanilla RNNs, which yield functionally the same approach as the
-linear state space model, less the use of a nonlinear activation function.
+Separately, nonlinear LSTM models have also been applied to modeling natural
+neural networks, such as use in predicting local field potentials
+\cite{kim.lstm}, and for stimulation modeling \cite{guclu.lstm}.
+LSTM cells are designed to better capture the relevant aspects of
+long-running network dynamics, and in our case we found that they were crucial
+for that reason. As a result, both our EN and CPN models leverage LSTM cells.
 
 \subsection{Simulation Overview}
 We demonstrate our approach here using a simulated grasping circuit.
@@ -699,8 +702,8 @@ We explore this in one of our experiments, explained below.
 In all experiments, training the co-processor requires a careful interleaving of
 EN and CPN training epochs. EN training epochs concentrate on updating the EN,
 based on observations of the effect of stimulation on the simulated network's output.
-The loss function when training the EN is the MSE loss between the actual and
-predicted output of the mRNN (i.e. muscle velocities). We then use the EN
+The loss function when training the EN is the mean squared error (MSE) loss between the
+actual and predicted output of the mRNN (i.e. muscle velocities). We then use the EN
 to train the CPN during the CPN training epochs. During that time, we backpropagate
 the MSE loss between the EN's predicted output, and target output, to the CPN. In
 other words: we treat the EN output as a proxy to the true brain, allowing us
@@ -735,34 +738,34 @@ See Fig. \ref{fig:training}.
 \subsubsection{EN training}
 For the EN to be useful, it must accurately predict the effect of stimulation
 produced by the CPN. In addition to that, backpropagating through it must yield
-gradients which train the CPN to output more useful stimulus. We discovered that
+gradients which train the CPN to output more useful stimulation. We discovered that
 this latter property does not necessarily occur simply by virtue of the former.
 We have found that an EN can be trained to extreme levels of predictive power, even
 on random stimulation, and to orders of magnitude lower loss than the task loss,
 while at the same time backpropagation through it yields gradients which are not
 useful for training the CPN. As a result, if the EN is not trained in specific ways,
 the CPN exhibits unstable training. We have thus far been unable to discover a way
-to measure and optimize for this second property, though pursuing it may be a
+to measure and optimize for this second property directly, though pursuing it may be a
 fruitful subject of future applied ML research. Instead of attempting to train an EN
-directly to exhibit this property, we discovered a training regime that reliably makes
-it occur.
+directly to exhibit this property, we discovered a training regime that indirectly,
+but reliably, makes it occur.
 
 The central concept of our training regime is to provide a carefully chosen variety of
 training examples, and to use heavy weight regularization, in order to force
 the EN to generalize well to stimulation which it hasn't yet seen. We hypothesize that
 the crux of our EN training problem is one of over-fitting: that the EN may be trained
-to great predictive power on a set of stimulation examples, but that the effective
+to high predictive power on a set of stimulation examples, but that the effective
 dimensionality of the problem it is learning is comparatively quite high, due to both
 the dimensionality of our stimulation parameters $\theta$, and the dynamics of the
-network being stimulated. As a result, the hypersurface which it has fit to the training
+network being stimulated. As a result, the hypersurface which it fits to the training
 examples may exhibit gradients not reflective of reality.
 
-First, and most significantly, we structure the training data set for each EN training epoch
+First, and most significantly, we structure the training dataset for each EN training epoch
 in a very specific way. Each epoch, we include:
 \begin{itemize}
 	\item examples using stimulation from the current CPN
-	\item a small (100s) collection of CPNs which are copies of the current CPN, with
-	      Gaussian-distributed mean-0 noise added to their parameters
+	\item examples from a small (100s) collection of CPNs which are copies of the
+	      current CPN, with Gaussian-distributed mean-0 noise added to their parameters
 	\item examples of white noise stimulation
 \end{itemize}
 We developed this structure under the belief that we needed to cover a sufficient
@@ -787,16 +790,16 @@ White noise stimulation                                                         
 \end{tabular}
 \end{table}
 
-Second, we use PyTorch's $AdamW$ optimizer, which includes an option for weight regularization.
-Additionally, we use a carefully chosen learning rate schedule. Our intuition is to leverage regularization as
-one of the standard mitigations for overfit. To converge, the learning rate schedule also needs
+Addiontally, we use PyTorch's $AdamW$ optimizer, which includes an option for weight regularization.
+With that, we use a carefully chosen learning rate schedule. Our intuition is to leverage regularization as
+one of the standard mitigations for overfit. To converge, the learning rate schedule needs
 to be chosen carefully: a relatively high learning rate at first, dropping to a very low rate soon
 thereafter. Using too-low or too-high of a learning rate in any phase causes the EN learning
 to not converge. EN training proceeds until it reaches a threshold of prediction error, defined as
 a fraction of the current CPN's task loss.
 
 \subsubsection{CPN training}
-Once we discovered an effective way to train an EN, CPN training was straightforward. For this phase,
+Once an EN is properly trainedx, CPN training is straightforward. For this phase,
 we generate training examples using the current CPN alone. The EN generates predictions of the
 effect of those stimulations, and we backpropagate through the EN to generate training gradients
 for the CPN. As with the EN, we constitute the dataset with a large random sample of trials from
@@ -818,16 +821,16 @@ a new EN each time we enter an EN training period. We explored the possibility
 of reusing an existing EN by retraining it, for the purpose of training efficiency.
 However, we found that retraining an EN was no more fast than training a new one,
 and in-fact usually took longer, despite significant experimentation with learning
-rates.
+rates. It is unclear if that fact is an artifact of our simulation, or of the
+problem more generally, and so it needs more examination in the future, for the
+purpose of training efficiency.
 
-The key challenge we face is determining when an EN is no longer suitable for training the
+The key remaining challenge is determining when an EN is no longer suitable for training the
 current CPN. Expiring an EN at the right time accomplishes two things. First, it ensures
 that our current EN is trained properly for the current CPN; without that, the CPN training
 will become unstable. Second, expiring the EN is how we adapt our learning to the brain's
 non-stationarity. At some point, the brain will have changed sufficiently for our EN to be
 out-of-date, and therefore requiring replacement.
-
-TODO: talk about retraining more
 
 We solve this challenge through a simple set of metrics, which, when satisfied, indicate
 we need to transition to an EN training epoch. Our first metric simply captures the EN's
@@ -838,44 +841,41 @@ number of recent training steps. This resembles common stopping conditions in
 iterative learning: one stops when learning is no longer improving the model. Together,
 these two metrics appear effective in ensuring we expire the EN at the right time.
 
-Unfortunately, because we expire the EN rather than retraining it, and because we need
-to expire it so often, training is less efficient than it otherwise could be. We explore
-this some in Section \ref{sec:results}. In the next subsection, we illustrate one way we
-mitigate training inefficiency.
-
-TODO: pseudocode
-
-\subsubsection{Optimization: data reuse}
-One obvious
-
-\section{Results}
-\label{sec:results}
+\subsubsection{Improving learning efficiency with data reuse}
+TODO. May drop this section if I can't get learning stabilized with this approach.
 
 \subsection{Experiments}
 \label{sec:experiments}
 
-Using the simulation described above, we perform three experiments to
-demonstrate the co-processor's ability to learn:
-\begin{itemize}
-	\item 50\% AIP loss
-	\item 100\% connectivity lesion between the F5 and M1 modules
-	\item 100\% connectivity lesion between the F5 and M1 modules without brain co-adpatation
-	\item 50\% M1 loss
-\end{itemize}
+Using the simulation described above, we perform several experiments to
+demonstrate the co-processor's ability to learn. In each experiment, we apply one
+of the three lesion types described above. We additionally vary whether we simulate
+brain co-adaptation, in order to better understand what the co-processor is learning.
+Finally, we perform one experiment where we attempt to simulate natural recovery from
+the lesion, prior to training the co-processor. In sum, our experiments are:
 
-Additionally, we perform each of the ...
+\begin{table}[]
+\begin{tabular}{|l|l|c|c|}
+\hline
+\textbf{Index} & \textbf{Lesion}                                           & \multicolumn{1}{l|}{\textbf{\begin{tabular}[c]{@{}l@{}}Simulate\\ co-adaptation?\end{tabular}}} & \multicolumn{1}{l|}{\textbf{\begin{tabular}[c]{@{}l@{}}Simulate\\ pre-recovery?\end{tabular}}} \\ \hline
+1              & 50\% AIP loss                                             &                                                                                                 &                                                                                                \\ \hline
+2              & 50\% AIP loss                                             & X                                                                                               &                                                                                                \\ \hline
+3              & 50\% M1 loss                                              &                                                                                                 &                                                                                                \\ \hline
+4              & 50\% M1 loss                                              & X                                                                                               &                                                                                                \\ \hline
+5              & 100\% loss of connectivity F5\textless{}-\textgreater{}M1 &                                                                                                 &                                                                                                \\ \hline
+6              & 100\% loss of connectivity F5\textless{}-\textgreater{}M1 & X                                                                                               &                                                                                                \\ \hline
+7              & 100\% loss of connectivity F5\textless{}-\textgreater{}M1 & X                                                                                               & X                                                                                              \\ \hline
+\end{tabular}
+\end{table}
 
-TODO: train vs test
+In each experiment, we use a single mRNN model, sourced directly from the results
+cited in Michaels \cite{michaels.mrnn}. We drive the experiment using the same set of
+input and output data that the mRNN was trained on. The dataset contains a total of
+502 trials, spread uniformally among 42 object classes. In each experiment, we separate
+a random sample of 20\% of the dataset for validation.
 
-Summary of tunables:
-\begin{itemize}
-	\item Learning rate schedules
-	\item Activation functions
-	\item Obs function dimensionality
-	\item Stim dimensionality
-	\item Dimensionality of EN, CPN
-\end{itemize}
-
+\section{Results}
+\label{sec:results}
 
 \begin{figure}[h]
 \includegraphics[width=\textwidth]{results_standin.png}
@@ -884,32 +884,63 @@ Summary of tunables:
 \label{fig:results}
 \end{figure}
 
+TODO: summary of conclusions that will go here:
 \begin{itemize}
-	\item Task performance improves drastically.
+	\item Task performance improves drastically. In all cases, performance is still improving slowly when I stop the simulation.
 		\begin{itemize}
-			\item Fig: normalized task loss vs CPN training epoch
-			\item Fig: normalized task loss vs training epoch
-			\item Fig: normalized task loss vs training epoch
-			\item Split by experiment
+			\item 90\% on connection lesion, both with and without co-adaptation
+			\item M1 50\%: 81\% recovery on first attempt with co-adaptation
+			\item AIP 50\%: 35\% recovery w/co-adaptation. Presumably, this is because we've lost encoding functionality, and co-adaptation is very slow. If we ran the simulation for 1 month, who knows?
+			\item Waiting on all other results.
 		\end{itemize}
-	\item Fine tuning takes a long time
-	\item Object classes separate. Fig: sep vs experiment vs epoch
+	\item Initially, performance improves orders of magnitude more quickly than later. 50-75\% recovery during this phase. This appears to be the co-processor learning the task structure (e.g. not to move the hand until after the hold signal is lifted).
+	\item Fine tuning takes a far longer time
+	\item This may have some connection to object class separation; show class sep metric side-by-side. (I have the data in hand, but haven't tried to correlate it to recovery yet).
 	\item Can co-adapt with the brain, as it changes
-	\item Training efficiency analysis. Show num epochs with and without recycling.
+	\item Training efficiency analysis. The majority of epochs (80\%; depends on experiment type) are EN training epochs, so most efficiency gains will be there.
+	\item Compare co-adaptive case vs not. Some tasks will be impossible to accomplish without the two cooperating, if enough cortex has been lost. (waiting for new results to confirm)
+	\item Show pre-recovery results; co-processor will improve beyond what recovery can achieve. (will run results this week)
 \end{itemize}
 
 \section{Discussion and Conclusion}
 \begin{itemize}
-	\item Training efficiency
-	\item Spectrum from simple low dimensional stimulation vectors today to higher dimensional future
+	\item Co-processors can be trained, and they can adapt to a difficult problem
+	\item One central issue that still needs work is data/training efficiency
+	\item Pitch a couple ideas to help solve it:
+		\begin{itemize}
+			\item Continuous retraining of EN, rather than throwing it away
+			\item Retain recent data and reuse it during training
+		\end{itemize}
 	\item Toward in vivo application: example of lower dimensional problems this may help with
 \end{itemize}
 
+\subsection{Learning efficiency}
+Learning efficiency is a key concern for our design. Due to limits on patient fatigue,
+limited time, implant battery life, and other concerns, it is not plausible to expect
+a learning algorithm to have access to unlimited amounts of training data. As a result,
+it is necessary to make efficient use of the data we can acquire.
+
+One clear advantage of our co-processor approach is that, as in Bernal \cite{bernal.sim},
+we can train our stimulation agent to a great degree
+
+\subsection{Future application}
+(on a lower dimensional problem presumably)
+
 \section{Acknowledgements}
-Ganguly, Priya, Anca, Justin, Luciano
+TODO: funding sources
+
+The author would like to thank the following for discussions and insights related to
+the present topic:
+\begin{itemize}
+	\item Karunesh Ganguly, UC San Francisco
+	\item Priya Khanna, UC San Francisco
+	\item Anca Dragan, UC Berkeley
+	\item Justin Ong, University of Washington
+	\item Luciano De La Iglesia, University of Washington
+\end{itemize}
 
 \section{Ethical Statement}
-asdf
+TODO.
 
 \section{References}
 \bibliographystyle{iopart-num}
