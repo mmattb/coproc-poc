@@ -212,7 +212,7 @@ class Experiment:
 
         if cfg.recover_after_lesion:
             model_path = michaels_load.get_path(fname_override="recovered.model")
-            self.mike.load_state_dict(torch.load(model_path))
+            self.mike.load_weights_from_file(model_path)
             self.opt_mike = AdamW(self.mike.parameters(), lr=1e-7)
 
     @property
@@ -368,7 +368,10 @@ class Experiment:
             if self.cfg.coadapt and (self.loss_history.eidx % 5) == 0:
                 loss = torch.nn.MSELoss()(actuals, dout[:, 1:, :])
                 loss.backward(inputs=list(self.mike.parameters()))
-                self.mike.set_coadap_grads()
+                if self.cfg.lesion_instance.application == "connection":
+                    self.mike.set_connection_coadap_grads()
+                else:
+                    self.mike.set_end_to_end_coadap_grads()
                 self.opt_mike.step()
 
             self.loss_history.report_user_data(user_data)

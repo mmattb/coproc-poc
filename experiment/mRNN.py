@@ -83,7 +83,6 @@ class MichaelsRNN(nn.Module):
 
             self.J_zero_grad_mask = None
             self.I_zero_grad_mask = None
-            self.recalc_masks_from_weights()
         else:
             # Masks ---------------------------
             # (num_neurons, num_neurons)
@@ -188,6 +187,7 @@ class MichaelsRNN(nn.Module):
                 self.x0 = nn.Parameter(torch.empty(self.num_neurons))
                 self.fc = nn.Linear(num_neurons_per_module, output_dim)
 
+        self.recalc_masks_from_weights()
         self.lesion = lesion
         self.stimulus = stimulus
 
@@ -209,18 +209,32 @@ class MichaelsRNN(nn.Module):
         I_zero_grad_mask[npm:, :] = 1.0
         self.I_zero_grad_mask = I_zero_grad_mask
 
-        self.I_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_input_features)
-        self.I_coadap_zero_grad_mask[:npm, :] = 1.0
+        # The hold signal response can change, but not input response
+        self.I_connection_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_input_features)
 
+        # Only M1 internal mappings
+        self.J_connection_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_neurons)
+        self.J_connection_coadap_zero_grad_mask[:npm, :npm] = 1.0
 
-        self.J_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_neurons)
-        self.J_coadap_zero_grad_mask[:npm, :npm] = 1.0
+        # Only M1
+        self.S_connection_coadap_zero_grad_mask = torch.zeros(self.num_neurons, 1)
+        self.S_connection_coadap_zero_grad_mask[:npm] = 1.0
+
+        # Only M1
+        self.B_connection_coadap_zero_grad_mask = torch.zeros(self.num_neurons, 1)
+        self.B_connection_coadap_zero_grad_mask[:npm] = 1.0
 
         if self._cuda is not None:
             self.J_zero_grad_mask = self.J_zero_grad_mask.cuda(self._cuda)
             self.I_zero_grad_mask = self.I_zero_grad_mask.cuda(self._cuda)
-            self.I_coadap_zero_grad_mask = self.I_coadap_zero_grad_mask.cuda(self._cuda)
-            self.J_coadap_zero_grad_mask = self.J_coadap_zero_grad_mask.cuda(self._cuda)
+            self.I_connection_coadap_zero_grad_mask = \
+                    self.I_connection_coadap_zero_grad_mask.cuda(self._cuda)
+            self.J_connection_coadap_zero_grad_mask = \
+                    self.J_connection_coadap_zero_grad_mask.cuda(self._cuda)
+            self.S_connection_coadap_zero_grad_mask = \
+                    self.S_connection_coadap_zero_grad_mask.cuda(self._cuda)
+            self.B_connection_coadap_zero_grad_mask = \
+                    self.B_connection_coadap_zero_grad_mask.cuda(self._cuda)
 
     def load_weights_from_file(self, data_path):
         self.load_state_dict(torch.load(data_path))
@@ -249,11 +263,17 @@ class MichaelsRNN(nn.Module):
         self.J.grad *= self.J_zero_grad_mask
         self.I.grad *= self.I_zero_grad_mask
 
-    def set_coadap_grads(self):
-        self.J.grad *= self.J_coadap_zero_grad_mask
+    def set_connection_coadap_grads(self):
+        self.J.grad *= self.J_connection_coadap_zero_grad_mask
         # It seems there is an AdamW bug where these are not always effective...
         # But let's try.
-        self.I.grad *= self.I_coadap_zero_grad_mask
+        self.I.grad *= self.I_connection_coadap_zero_grad_mask
+
+        self.S.grad *= self.S_connection_coadap_zero_grad_mask
+        self.B.grad *= self.B_connection_coadap_zero_grad_mask
+
+    def set_end_to_end_coadap_grads(self):
+        self.set_sparse_grads()
 
     def set_lesion(self, lesion):
         """
