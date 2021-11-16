@@ -135,7 +135,7 @@ class CPN_EN_CoProc(experiment.CoProc):
 
         return update_task_loss
 
-    def train_en_closed_loop(self, loss_history, next_is_validation):
+    def train_en_closed_loop(self, loss_history, user_data, next_is_validation):
         # Unpack, aka form a single 'actuals', 'targets', 'trial_end',
         #  and pack a list of concatenated stims.
 
@@ -143,6 +143,17 @@ class CPN_EN_CoProc(experiment.CoProc):
         trial_len = len(self.saved_data[0][4])
 
         is_validation = next_is_validation
+
+
+
+        last_pred_loss = 1
+        if user_data is not None:
+            if user_data.pred_loss == user_data.pred_loss:
+                last_pred_loss = user_data.pred_loss
+        if last_pred_loss > 0.005:
+            self.saved_data = []
+            return False
+
 
         done = False
         checkpoint_eidx = 0
@@ -228,7 +239,7 @@ class CPN_EN_CoProc(experiment.CoProc):
                 self.epoch_type = EpochType.EN
 
             if len(self.saved_data) == self.recycle_thresh and not en_is_ready:
-                en_is_ready = self.train_en_closed_loop(loss_history,
+                en_is_ready = self.train_en_closed_loop(loss_history, user_data,
                     next_is_validation)
 
                 if en_is_ready:
