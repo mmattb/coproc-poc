@@ -49,7 +49,7 @@
 \begin{document}
 
 \title[Modeling a Neural Co-Processor]
-{Towards a Neural Co-Processor Which Restores Movement After Stroke: Modeling a Proof-of-Concept}
+{Towards a Neural Co-Processor Which Restores Dexterity After Stroke: Modeling a Proof-of-Concept}
 
 \author{Matthew J Bryan$^{1}$, Linxing Preston Jiang$^{1}$, Rajesh P N Rao$^{1}$}
 
@@ -315,7 +315,7 @@ a direction that will later allow for real deployments. Otherwise, our
 design may be adapting to the pecularities of the simulation, without
 becoming more useful for the real world.
 
-An example of such a simulation approach is Bernal et al. \cite{bernal.sim}. In this work, the
+An example of such a simulation approach is Dura-Bernal et al. \cite{bernal.sim}. In this work, the
 authors use a simulated spiking neural network to train a stimulation agent, much
 like the work we present here. Their stimulation agent sought to restore the network's
 control of a simulated arm, to reach a target, after a simulated lesion was applied.
@@ -888,8 +888,8 @@ TODO: summary of conclusions that will go here:
 	\item Task performance improves drastically. In all cases, performance is still improving slowly when I stop the simulation.
 		\begin{itemize}
 			\item 90\% on connection lesion, both with and without co-adaptation
-			\item M1 50\%: 81\% recovery on first attempt with co-adaptation
-			\item AIP 50\%: 35\% recovery w/co-adaptation. Presumably, this is because we've lost encoding functionality, and co-adaptation is very slow. If we ran the simulation for 1 month, who knows?
+			\item M1 50\%: 81\% recovery on first attempt with co-adaptation. This is likely to go higher, since I found a bug.
+			\item AIP 50\%: 53\% recovery w/co-adaptation so far; still running. The loss was very low to start with, and recovery depends heavily on co-adaptation, so training is slow. Without co-adaptation, the co-processor cannot learn well, because too much encoding machinery is lost.
 			\item Waiting on all other results.
 		\end{itemize}
 	\item Initially, performance improves orders of magnitude more quickly than later. 50-75\% recovery during this phase. This appears to be the co-processor learning the task structure (e.g. not to move the hand until after the hold signal is lifted).
@@ -905,15 +905,43 @@ TODO: summary of conclusions that will go here:
 \label{sec:discussion}
 
 We present here a first-of-its-kind demonstration of a novel design for neural co-processors,
-allowing for an AI agent to learn stimulation policies that improve a user's task performance.
-The central notion of the design is to leverage a stimulation model, whose purpose is to provide
-training feedback to an AI agent responsible for generating the stimulation. We present here
-a first demonstration of the learning algorithms and key properties
+allowing for an AI agent to learn neural stimulation policies that improve a user's performance
+of an external task. The design revolves around the use of a stimulation model for training the
+agent, providing a proxy to the true function mapping stimulation and neural activity
+to task performance. We base our demonstration on a simulation of a neural circuit engaged in
+an external grasping task.
 
-We proposed X
-It did Y
-It was found that Z
-It has potential to A
+Our co-processor design adapts well to a variety of simulated lesion types, reducing task loss
+50-90\% across our various experiments. To work this well, the co-processor needed to adapt to
+the long-running dynamics of the stimulated network, as well as the long-running effects of
+stimulation. In some experiments we required it to additionally adapt to non-stationarity in
+the neural circuit, which was actively changing at the same time the co-processor was learning.
+It achieved that as well, co-adapting with the simulated brain to improve external task
+performance.  TODO: pre-recovery result.
+
+Clearly, we need to examine carefully what can and cannot be inferred from simulation studies
+such as these. As in Dura-Bernal \cite{bernal.sim}, we note that our simulation differs
+drastically from an organic brain, both in scale and structure. Today, predicting long-running
+neural responses to stimulation remains a difficult problem, implying targeted neural control
+is also difficult. Even moreso, identifying the neural correlates of complex task success
+remains largely out of reach \cite{khanna.openloop}. What, then, does our simulation provide us?
+
+Abstractly, the co-processor lends itself to any closed-loop neural stimulation problem
+where a relevant stimulation model can be identified. There are many lower dimensional problems
+today which we address with far simpler stimulation regimes than would be necessary for
+e.g. remediating the symptoms of a stroke. For example, deep brain stimulators for
+treating the symptoms of Parkinson's Disease can now be controlled in a closed loop
+fashion to also minimize stimulation side-effects and maximize implant battery life.
+TODO: citation. Our simulation clearly does not imply that our co-processor design can
+translate immediately to stroke applications. However, it does demonstrate that our design
+can adapt to long-running effects of stimulation, as well as to the non-stationarity of
+the neural circuit to which it is applying the stimulation. These properties together
+suggest it could be useful in lower dimensional problems where a stimulation model can
+be estimated, and stimulation parameters can be tied to the target objective. TODO: more examples?
+
+On the whole, the co-processor quickly improved task performance, but required orders of magnitude
+more training examples to achieve its highest levels of performance. This training inefficiency remains
+a problem...
 
 \begin{itemize}
 	\item Co-processors can be trained, and they can adapt to a difficult problem
@@ -932,7 +960,7 @@ limited time, implant battery life, and other concerns, it is not plausible to e
 a learning algorithm to have access to unlimited amounts of training data. As a result,
 it is necessary to make efficient use of the data we can acquire.
 
-One clear advantage of our co-processor approach is that, as in Bernal \cite{bernal.sim},
+One clear advantage of our co-processor approach is that, as in Dura-Bernal \cite{bernal.sim},
 we can train our stimulation agent to a great degree
 
 \section{Conclusion}
