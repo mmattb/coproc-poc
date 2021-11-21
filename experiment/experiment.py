@@ -46,7 +46,7 @@ def get_coadapt_config(cuda=None, **kwargs):
 def get_m1_lesion_config(cuda=None, coadapt=True, **kwargs):
     lesion_type = lesion.LesionType.outputs
     # Lesion the neurons with idxs 50-100, which are in M1
-    lesion_args = (50, 100)
+    lesion_args = (0, 50)
     return get_config(
         cuda=cuda,
         coadapt=coadapt,
@@ -54,7 +54,8 @@ def get_m1_lesion_config(cuda=None, coadapt=True, **kwargs):
         lesion_type=lesion_type,
         lesion_args=lesion_args,
         num_stim_neurons=50,
-        stim_pad_right_neurons=250,
+        stim_pad_left_neurons=50,
+        stim_pad_right_neurons=200,
         **kwargs,
     )
 

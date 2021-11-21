@@ -85,6 +85,7 @@ DEFAULT_OBS_OUT_DIM = 20
 DEFAULT_OBS_SIGMA = 1.75
 DEFAULT_NUM_STIM_CHANNELS = 16
 DEFAULT_STIM_SIGMA = 2.175
+DEFAULT_STIM_PAD_LEFT_NEURONS = 0
 DEFAULT_STIM_PAD_RIGHT_NEURONS = 200
 DEFAULT_OUT_DIM = 50
 DEFAULT_HOLDOUT_PCT = 0.2
@@ -149,6 +150,7 @@ def get(
     num_stim_channels=DEFAULT_NUM_STIM_CHANNELS,
     num_stim_neurons=None,
     stim_sigma=DEFAULT_STIM_SIGMA,
+    stim_pad_left_neurons=DEFAULT_STIM_PAD_LEFT_NEURONS,
     stim_pad_right_neurons=DEFAULT_STIM_PAD_RIGHT_NEURONS,
     stim_retain_grad=False,
     obs_out_dim=DEFAULT_OBS_OUT_DIM,
@@ -174,6 +176,9 @@ def get(
         num_stim_neurons = num_neurons_per_module
 
     if stimulation_type is stim.StimulationType.one_to_one:
+        if pad_left_neurons != 0:
+            raise NotImplementedError()
+
         stimulus = stimulation_type.value(
             num_stim_neurons,
             num_stim_neurons,
@@ -181,6 +186,9 @@ def get(
         )
     elif stimulation_type is stim.StimulationType.gaussian_alpha:
         if cuda:
+            raise NotImplementedError()
+
+        if pad_left_neurons != 0:
             raise NotImplementedError()
 
         # NOTE: can add the num_stim_channels and sigma arg above
@@ -191,12 +199,16 @@ def get(
             sigma=stim_sigma,
         )
     elif stimulation_type is stim.StimulationType.gaussian_exp:
+        assert (num_stim_neurons + stim_pad_left_neurons + stim_pad_right_neurons) == \
+                (3 * num_neurons_per_module)
+
         stimulus = stimulation_type.value(
             num_stim_channels,
             num_stim_neurons,
             batch_size=1,  # Will be reset before use
             sigma=stim_sigma,
             retain_grad=stim_retain_grad,
+            pad_left_neurons=stim_pad_left_neurons,
             pad_right_neurons=stim_pad_right_neurons,
             cuda=cuda,
         )

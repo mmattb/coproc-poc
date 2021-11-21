@@ -9,10 +9,12 @@ from . import utils
 
 class Stimulus(object):
     def __init__(
-        self, num_stim_channels, num_neurons, pad_right_neurons=200, batch_size=1
+        self, num_stim_channels, num_neurons, pad_left_neurons=0,
+        pad_right_neurons=200, batch_size=1
     ):
         self._num_stim_channels = num_stim_channels
         self._num_neurons = num_neurons
+        self._pad_left_neurons = pad_left_neurons
         self._pad_right_neurons = pad_right_neurons
         self._batch_size = batch_size
 
@@ -31,6 +33,10 @@ class Stimulus(object):
     @property
     def pad_right_neurons(self):
         return self._pad_right_neurons
+
+    @property
+    def pad_left_neurons(self):
+        return self._pad_left_neurons
 
     def add(self, params):
         raise NotImplementedError()
@@ -177,6 +183,7 @@ class StimulusGaussianExp(Stimulus):
         self,
         num_stim_channels,
         num_neurons,
+        pad_left_neurons=0,
         pad_right_neurons=200,
         sigma=2.5,
         decay=0.3,
@@ -185,11 +192,13 @@ class StimulusGaussianExp(Stimulus):
         cuda=None,
     ):
         super(StimulusGaussianExp, self).__init__(
-            num_stim_channels, num_neurons, pad_right_neurons, batch_size=batch_size
+            num_stim_channels, num_neurons, pad_left_neurons, pad_right_neurons,
+            batch_size=batch_size
         )
 
         self._sigma = sigma
-        self._vals = torch.zeros((batch_size, num_neurons + pad_right_neurons))
+        self._vals = torch.zeros((batch_size, pad_left_neurons + num_neurons +
+            pad_right_neurons))
         self._decay = decay
         self._norm = norm(0, self._sigma)
         self._retain_grad = retain_grad
@@ -237,7 +246,8 @@ class StimulusGaussianExp(Stimulus):
     def reset(self, batch_size=None):
         super(StimulusGaussianExp, self).reset(batch_size=batch_size)
         self._vals = torch.zeros(
-            (self.batch_size, self.num_neurons + self.pad_right_neurons)
+            (self.batch_size, self.pad_left_neurons + self.num_neurons +
+                self.pad_right_neurons)
         )
 
         if self._retain_grad:
@@ -266,7 +276,9 @@ class StimulusGaussianExp(Stimulus):
         # (batch_size, num_neurons)
         new_stim = W @ P.reshape(self.batch_size, self._num_stim_channels, 1)
 
-        self._vals[:, : self.num_neurons] += new_stim[:, :, 0]
+        start_idx = self.pad_left_neurons
+        end_idx = self.pad_left_neurons + self.num_neurons
+        self._vals[:, start_idx:end_idx] += new_stim[:, :, 0]
 
     def get_next(self):
         if self._retain_grad:
