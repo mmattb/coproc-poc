@@ -1,3 +1,4 @@
+import errno
 import logging
 import os
 import time
@@ -19,6 +20,9 @@ from . import utils
 
 
 g_logger = logging.getLogger("experiment")
+
+# Rel path pointing to a pre-recovered mRNN
+RECOV_MODEL_PATH = "experiment/recovered"
 
 
 @attr.s(auto_attribs=True)
@@ -211,8 +215,17 @@ class Experiment:
             self.obs_drop_module_idx = None
 
         if cfg.recover_after_lesion:
-            model_path = michaels_load.get_path(fname_override="recovered.model")
-            self.mike.load_weights_from_file(model_path)
+            model_path = os.path.join(RECOV_MODEL_PATH, "recovered_mrnn_%s.model" %
+                str(lesion_instance))
+
+            try:
+                self.mike.load_weights_from_file(model_path)
+            except OSError as e:
+                if e.errno = errno.ENOENT:
+                    raise ValueError("No pre-generated recovered mRNN available "
+                        "for a lesion of type %s" % str(cfg.lesion_instance))
+                raise
+
             self.opt_mike = AdamW(self.mike.parameters(), lr=1e-7)
 
     @property
