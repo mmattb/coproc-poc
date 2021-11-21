@@ -217,14 +217,15 @@ class Experiment:
 
         if cfg.recover_after_lesion:
             model_path = os.path.join(RECOV_MODEL_PATH, "recovered_mrnn_%s.model" %
-                str(lesion_instance))
+                str(cfg.lesion_instance))
 
             try:
                 self.mike.load_weights_from_file(model_path)
             except OSError as e:
-                if e.errno = errno.ENOENT:
+                if e.errno == errno.ENOENT:
                     raise ValueError("No pre-generated recovered mRNN available "
-                        "for a lesion of type %s" % str(cfg.lesion_instance))
+                        "for a lesion of type %s; looked for path %s" % (
+                        str(cfg.lesion_instance), model_path))
                 raise
 
             self.opt_mike = AdamW(self.mike.parameters(), lr=1e-7)

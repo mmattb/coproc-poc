@@ -58,6 +58,8 @@ class CPN_EN_CoProc(experiment.CoProc):
         if log_dir is not None:
             self.log_dir = os.path.join(log_dir, cfg.cfg_str, str(self.uuid))
             os.makedirs(self.log_dir)
+
+            print("Log dir will be:", self.log_dir)
         else:
             self.log_dir = None
 
