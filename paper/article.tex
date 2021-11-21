@@ -901,7 +901,7 @@ TODO: summary of conclusions that will go here:
 	\item Show pre-recovery results; co-processor will improve beyond what recovery can achieve. (will run results this week)
 \end{itemize}
 
-\section{Discussion}
+\section{Discussion and Future Work}
 \label{sec:discussion}
 
 We present here a first-of-its-kind demonstration of a novel design for neural co-processors,
@@ -919,7 +919,7 @@ the neural circuit, which was actively changing at the same time the co-processo
 It achieved that as well, co-adapting with the simulated brain to improve external task
 performance.  TODO: pre-recovery result.
 
-Clearly, we need to examine carefully what can and cannot be inferred from simulation studies
+Clearly, we need to discuss carefully what can and cannot be inferred from simulation studies
 such as these. As in Dura-Bernal \cite{bernal.sim}, we note that our simulation differs
 drastically from an organic brain, both in scale and structure. Today, predicting long-running
 neural responses to stimulation remains a difficult problem, implying targeted neural control
@@ -931,43 +931,46 @@ where a relevant stimulation model can be identified. There are many lower dimen
 today which we address with far simpler stimulation regimes than would be necessary for
 e.g. remediating the symptoms of a stroke. For example, deep brain stimulators for
 treating the symptoms of Parkinson's Disease can now be controlled in a closed loop
-fashion to also minimize stimulation side-effects and maximize implant battery life.
-TODO: citation. Our simulation clearly does not imply that our co-processor design can
-translate immediately to stroke applications. However, it does demonstrate that our design
-can adapt to long-running effects of stimulation, as well as to the non-stationarity of
-the neural circuit to which it is applying the stimulation. These properties together
-suggest it could be useful in lower dimensional problems where a stimulation model can
-be estimated, and stimulation parameters can be tied to the target objective. TODO: more examples?
+fashion. That allows them to minimize stimulation side-effects and maximize implant
+battery life, while also reducing the patient's primary symptoms. TODO: citation. Our
+simulation does not imply that our co-processor design can translate immediately to
+stroke applications. However, it does demonstrate that our design can adapt to
+long-running effects of stimulation, as well as to the non-stationarity of the neural
+circuit to which it is applying the stimulation. These properties together suggest it may be
+useful in lower dimensional problems where a stimulation model can be estimated, and
+stimulation parameters can be tied to the target objective. TODO: more examples?
 
-On the whole, the co-processor quickly improved task performance, but required orders of magnitude
-more training examples to achieve its highest levels of performance. This training inefficiency remains
-a problem...
+On the whole, the co-processor quickly improved task performance, but required orders of
+magnitude more training examples to achieve its highest levels of performance. Even
+moderate amounts of recovery may be valuable to a user, but nevertheless we consider
+training efficiency to remain a problem. Due to limits on patient fatigue, time, implant
+battery life, and other concerns, it is not plausible to expect a learning algorithm
+to have access to unlimited amounts of training data. As a result, it is necessary to
+make efficient use of the data we can acquire. We believe there exist at least three
+mitigations for that:
 
 \begin{itemize}
-	\item Co-processors can be trained, and they can adapt to a difficult problem
-	\item One central issue that still needs work is data/training efficiency
-	\item Pitch a couple ideas to help solve it:
-		\begin{itemize}
-			\item Continuous retraining of EN, rather than throwing it away
-			\item Retain recent data and reuse it during training
-		\end{itemize}
-	\item Toward in vivo application: example of lower dimensional problems this may help with
+	\item Retraining an existing EN, rather than regularly creating a new one. As
+	      mentioned above, we encountered difficulty with this approach, but it remains
+	      to be seen if this is a fundamental problem with our training method, rather
+	      than a peculiarity of our simulation. Also, it remains unclear if a solution
+	      for our simulation exists as well, which we've simply yet to identify. This
+	      remains a future area of inquiry.
+	\item Making better use of what data we acquire. In this initial simulation we do
+	      not retain data beyond the present training epoch. In practice, we can likely
+	      retain training data for some time window. Non-stationarity requires us to
+	      regularly discard or discount data as it ages. However, in practice, training
+	      epochs operate on the order of seconds, suggesting that data can be retained
+	      and reused for a period of time. The `speed' of non-stationarity compared to
+	      the co-processor's learning therefore must be an area of future research.
+	\item Matching the dimensionality of the stimulation parameters and observation
+	      data to the amount of available data. If one chooses a stimulation regime with
+	      a small number of controllable parameters, where nevertheless task improvement
+	      from the stimulation is possible, that allows for a simpler co-processor, which
+	      may require less training data. We discuss this next.
 \end{itemize}
 
-\subsection{Learning efficiency}
-Learning efficiency is a key concern for our design. Due to limits on patient fatigue,
-limited time, implant battery life, and other concerns, it is not plausible to expect
-a learning algorithm to have access to unlimited amounts of training data. As a result,
-it is necessary to make efficient use of the data we can acquire.
-
-One clear advantage of our co-processor approach is that, as in Dura-Bernal \cite{bernal.sim},
-we can train our stimulation agent to a great degree
-
-\section{Conclusion}
-...
-\subsection{Future application}
-(on a lower dimensional problem presumably)
-
+TODO: future applications
 
 \section{Acknowledgements}
 TODO: funding sources
