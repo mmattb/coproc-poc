@@ -897,7 +897,7 @@ TODO: summary of conclusions that will go here:
 	\item Training efficiency analysis. The majority of epochs (80\%; depends on experiment type) are EN training epochs, so most efficiency gains will be there.
 	\item Can co-adapt with the brain, as it changes
 	\item Compare co-adaptive case vs not. Some tasks will be impossible to accomplish without the two cooperating, if enough cortex has been lost. (waiting for new results to confirm)
-	\item Show pre-recovery results; co-processor will hopefully improve beyond what recovery can achieve. (Waiting on results; running now)
+	\item Show pre-recovery results; co-processor will hopefully improve beyond what recovery can achieve. Initial result: the co-adaptive case found a better solution. The co-processor couldn't improve yet on the pre-recovery case. The solution it found was (basically) to ignore the inputs.
 \end{itemize}
 
 \section{Discussion and Future Work}
@@ -930,8 +930,8 @@ where a relevant stimulation model can be identified. There are many lower dimen
 today which we address with far simpler stimulation regimes than would be necessary for
 e.g. remediating the symptoms of a stroke. In some applications, such as PD symptom relief,
 stimulation is often parameterized by a single off-vs-on parameter, or a small handful of
-voltage parameters, where the key challenge is learning when to apply the stimulation, and
-its magnitude. Our simulation demonstrates the ability of our training method to adapt to
+parameters, where the key challenge is learning when to apply the stimulation, and
+its shape and power. Our simulation demonstrates the ability of our training method to adapt to
 higher dimensional problems than these, where additionally the long-running effects of
 stimulation on the intended figure-of-merit must be modeled. These properties together
 suggest it may be useful in lower dimensional problems where a stimulation model can be
@@ -985,7 +985,7 @@ condition DBS stimulation parameters. The stimulation controller adapts to non-s
 of the mapping between NMs and optimal control, which is necessary due to the sensitivity
 of NMs to context (e.g. sitting or standing). The co-processor model is likely to
 transition well to such an application, where it may provide additional energy savings
-or reduction of stimulation side-effects. Here, it will attempt to extract neural
+or reduction of stimulation side-effects. In that case, it will attempt to extract neural
 markers appropriate for each context, to detect transitions in context, and to apply
 optimal stimulation.
 
