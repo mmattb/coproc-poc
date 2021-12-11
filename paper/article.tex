@@ -882,6 +882,50 @@ a random sample of 20\% of the dataset for validation.
 \label{fig:results}
 \end{figure}
 
+TODO: table of raw healthy vs lesioned vs recovered vs pct recovered
+
+With each experiment, we track two metrics to characterize the learning progress. First, we
+track the task loss, which is an MSE loss that measures the co-processor's ability to restore
+movement towards the target trajectory. We characterize that measure in terms of its percent
+difference from lesioned and healthy performances.
+
+Second, we measure the degree to which the co-processor's solution successfully
+differentiates object classes. We measure the ratio of within-class and total variation,
+and compare that to the healthy network. Our separation metric $S$ is defined as:
+
+\begin{equation}
+	S = \frac{\sigma_{a}}{\sigma_{w}} - \frac{\sigma_{a,h}}{\sigma_{w,h}}
+\end{equation}
+
+where $\sigma$ measures the mean variation, across time, and across all data points in
+a given sample. $\sigma_{a}$ is the total variation of a dataset, and $\sigma_{w}$
+is the average of the within-class variations. The $h$ indicates the healthy
+metric. An $S$ value of 0.0 indicates that the grasps for the various object classes
+vary to the same degree as the healthy network.
+
+This metric $S$ allows us to differentiate overall task performance improvement
+and the ability of the co-processor to condition the grasp based on visual information.
+The structure of the delayed reach-to-grasp task can be learned by the co-processor,
+i.e. to hold muscle velocities to 0.0 for the initial part of each trial, without it
+also learning to differentiate the various object shapes from the brain observations.
+$S$ is our metric for differentiating those two co-processor behaviors.
+
+\subsection{Experiment 1: AIP 75\% lesion}
+This experiment measures the effect of a loss of task representation neural
+machinery on the ability of the co-processor to succeed. In the non-coadaptive
+version of this experiment, the loss of neurons involved in encoding the
+visual inputs results in the simulated brain being unable to condition its
+grasp for the object shape. Likewise, the co-processor doesn't have sufficient
+information to improve performance. The lesioned circuit largely 
+
+In the co-adaptive case, 
+
+See Fig. \ref{fig:results}.
+
+\subsection{Experiment 2: M1 75\% lesion}
+\subsection{Experiment 3: F5 and M1 connectivity lesion}
+\subsection{Experiment 4: M1 lesion with pre-recovery}
+
 TODO: summary of conclusions that will go here:
 \begin{itemize}
 	\item Task performance improves drastically. In all cases, performance is still improving slowly when I stop the simulation.
