@@ -33,6 +33,11 @@ class CPNEpochCPN:
         self.reg_stim_weight = None
         self.stims = []
 
+        if cfg.recover_after_lesion:
+            self.set_opt_lr = self.lr_sched_aggressive_refine3
+        else:
+            self.set_opt_lr = self.lr_sched_standard
+
         self.reset()
 
     def reset(self):
@@ -102,9 +107,71 @@ class CPNEpochCPN:
 
         self.recent_pred_loss = pred_loss.item()
 
-    def finish(self, loss_history, is_validation):
+    def lr_sched_aggressive_refine(self, rtl, eidx):
+        """
+        Args:
+            rtl - recent training loss, which we use to determine the learning rate
+        """
+        if rtl is None or rtl >= 0.005:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 1e-3
+        elif rtl >= 0.004:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 1e-4
+        elif rtl >= 0.002:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 2e-6
+        else:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 1e-6
 
-        rtl = self.recent_train_loss
+    def lr_sched_aggressive_refine2(self, rtl, eidx):
+        """
+        Args:
+            rtl - recent training loss, which we use to determine the learning rate
+        """
+        if rtl is None or rtl >= 0.004:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 5e-4
+        elif rtl >= 0.003:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 1e-5
+        elif rtl >= 0.002:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 2e-6
+        else:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 1e-6
+
+    def lr_sched_aggressive_refine3(self, rtl, eidx):
+        """
+        Args:
+            rtl - recent training loss, which we use to determine the learning rate
+        """
+        if rtl is None or eidx < 4000:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 1e-3
+        elif rtl >= 0.008:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 1e-3
+        elif rtl >= 0.006:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 5e-4
+        elif rtl >= 0.005:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 1e-5
+        elif rtl >= 0.004:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 2e-6
+        else:
+            for p in self.opt_cpn.param_groups:
+                p["lr"] = 1e-6
+
+    def lr_sched_standard(self, rtl, eidx):
+        """
+        Args:
+            rtl - recent training loss, which we use to determine the learning rate
+        """
         if rtl is None or rtl >= 0.008:
             for p in self.opt_cpn.param_groups:
                 p["lr"] = 1e-3
@@ -117,6 +184,11 @@ class CPNEpochCPN:
         else:
             for p in self.opt_cpn.param_groups:
                 p["lr"] = 1e-6
+
+    def finish(self, loss_history, is_validation):
+
+        rtl = self.recent_train_loss
+        self.set_opt_lr(rtl, loss_history.eidx)
 
         # Every 10 epochs let's validate/test
         if not is_validation and (loss_history.eidx % 10) == 0:
