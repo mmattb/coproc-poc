@@ -12,6 +12,7 @@ _G_MSELOSS = torch.nn.MSELoss()
 
 g_logger = logging.getLogger("stats")
 
+
 def calc_task_loss(actuals, targets):
     return _G_MSELOSS(actuals, targets[:, 1:, :])
 
@@ -49,7 +50,9 @@ class LossHistory:
         self.lesioned_loss = lesioned_loss
         self.healthy_loss = healthy_loss
 
-        g_logger.info("Healthy loss: %0.8f, Lesioned loss: %0.8f", lesioned_loss, healthy_loss)
+        g_logger.info(
+            "Healthy loss: %0.8f, Lesioned loss: %0.8f", healthy_loss, lesioned_loss
+        )
 
         self.eidx = 0
 
@@ -85,9 +88,7 @@ class LossHistory:
             "task_loss": render_none_or_float(rec.task_loss),
             "task_val_loss": render_none_or_float(rec.task_val_loss),
             "pct_recov": render_none_or_float(rec.pct_recov, fmt="%0.3f"),
-            "class_separation": render_none_or_float(
-                rec.class_separation, fmt="%0.3f"
-            ),
+            "class_separation": render_none_or_float(rec.class_separation, fmt="%0.3f"),
         }
 
         if rec.user_data is not None:
@@ -154,7 +155,6 @@ class LossHistory:
         self._recs.append(rec)
         self.eidx += 1
 
-
     def report_by_result(
         self, actuals, dout, labels, update_task_loss=True, user_data=None
     ):
@@ -172,7 +172,8 @@ class LossHistory:
     ):
         if update_task_loss:
             task_val_loss = calc_task_loss(actuals, dout)
-        else: task_val_loss = None
+        else:
+            task_val_loss = None
 
         self.report(None, task_val_loss=task_val_loss, user_data=user_data)
 
