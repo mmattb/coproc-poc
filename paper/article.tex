@@ -741,8 +741,8 @@ See Fig. \ref{fig:training}.
 For the EN to be useful, it must accurately predict the effect of stimulation
 produced by the CPN. In addition to that, backpropagating through it must yield
 gradients which train the CPN to output more useful stimulation. We discovered that
-this latter property does not necessarily occur simply by virtue of the former.
-We have found that an EN can be trained to extreme levels of predictive power, even
+this latter property does not occur simply by virtue of the former.
+We have found that an EN can be trained to high levels of predictive power, even
 on random stimulation, and to orders of magnitude lower loss than the task loss,
 while at the same time backpropagation through it yields gradients which are not
 useful for training the CPN. As a result, if the EN is not trained in specific ways,
@@ -841,9 +841,6 @@ number of recent training steps. This resembles common stopping conditions in
 iterative learning: one stops when learning is no longer improving the model. Together,
 these two metrics appear effective in ensuring we expire the EN at the right time.
 
-\subsubsection{Improving learning efficiency with data reuse}
-TODO. May drop this section if I can't get learning stabilized with this approach.
-
 \subsection{Experiments}
 \label{sec:experiments}
 
@@ -876,7 +873,7 @@ a random sample of 20\% of the dataset for validation.
 \label{sec:results}
 
 \begin{figure}[h]
-\includegraphics[width=\textwidth]{results_standin.png}
+\includegraphics[width=\textwidth]{training_results.png}
 \caption{Loss and class separation vs training epoch}
 \centering
 \label{fig:results}
@@ -927,6 +924,12 @@ See Fig. \ref{fig:results}.
 \subsection{Experiment 4: M1 lesion with pre-recovery}
 
 TODO: summary of conclusions that will go here:
+
+TODO:
+* AIP + coadaptation shows that we can adapt to changes in the input mappings.
+* M1 + coadaptation shows we can adapt to changes in the output mappings
+* Connection lesion shows we can act as a bridge
+
 \begin{itemize}
 	\item Task performance improves drastically. In all cases, performance is still improving slowly when I stop the simulation.
 		\begin{itemize}
@@ -960,7 +963,9 @@ the long-running dynamics of the stimulated network, as well as the long-running
 stimulation. In some experiments we required it to additionally adapt to non-stationarity in
 the neural circuit, which was actively changing at the same time the co-processor was learning.
 It achieved that as well, co-adapting with the simulated brain to improve external task
-performance.  TODO: pre-recovery result.
+performance. Finally, it adapted to a simulated brain which had already undergone some amount of
+lesion recovery. In that case, the co-processor successfully identified the information upstream
+from the lesion which was necessary to stimulate the motor cortex downstream.
 
 Clearly, we need to discuss carefully what can and cannot be inferred from simulation studies
 such as these. As in Dura-Bernal \cite{bernal.sim}, we note that our simulation differs
