@@ -879,7 +879,22 @@ a random sample of 20\% of the dataset for validation.
 \label{fig:results}
 \end{figure}
 
-TODO: table of raw healthy vs lesioned vs recovered vs pct recovered
+TODO: label lines/colors
+
+\begin{table}[]
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline
+\textbf{Experiment}  & \textbf{\begin{tabular}[c]{@{}l@{}}Lesioned\\ loss\end{tabular}} & \textbf{\begin{tabular}[c]{@{}l@{}}Min task\\ loss\end{tabular}} & \textbf{\begin{tabular}[c]{@{}l@{}}Min task val\\ loss\end{tabular}} & \textbf{Pct recov} & \textbf{\begin{tabular}[c]{@{}l@{}}Pct recov\\ val\end{tabular}} \\ \hline
+AIP No-coadapt & 0.004507                                                          & 0.004599                                                         & 0.004658                                                             & -2.32\%            & -3.82\%                                                          \\ \hline
+AIP Coadapt    & 0.004507                                                          & 0.001575                                                         & 0.001502                                                             & 74.41\%            & 76.26\%                                                          \\ \hline
+M1 No-coadapt  & 0.021136                                                          &                                                                  &                                                                      & 102.75\%           & 102.75\%                                                         \\ \hline
+M1 Coadapt     & 0.021136                                                          & 0.004772                                                         & 0.004815                                                             & 79.55\%            & 79.35\%                                                          \\ \hline
+Con No-coadapt & 0.020719                                                          & 0.002584                                                         & 0.002583                                                             & 89.99\%            & 89.99\%                                                          \\ \hline
+Con Coadapt    & 0.020719                                                          & 0.002583                                                         & 0.002405                                                             & 89.99\%            & 90.88\%                                                          \\ \hline
+Pre-recov*      & 0.003834                                                          & 0.003105                                                         & 0.003077                                                             & 22.31\%            & 23.16\%                                                          \\ \hline
+\end{tabular}
+\caption{\label{tab:results}Losses and recovery. *Pre-recovery lesioned loss and percent recoveries based on the post-recovery values.}
+\end{table}
 
 With each experiment, we track two metrics to characterize the learning progress. First, we
 track the task loss, which is an MSE loss that measures the co-processor's ability to restore
@@ -907,45 +922,50 @@ i.e. to hold muscle velocities to 0.0 for the initial part of each trial, withou
 also learning to differentiate the various object shapes from the brain observations.
 $S$ is our metric for differentiating those two co-processor behaviors.
 
+TODO: describe stopping conditions
+
 \subsection{Experiment 1: AIP 75\% lesion}
-This experiment measures the effect of a loss of task representation neural
-machinery on the ability of the co-processor to succeed. In the non-coadaptive
-version of this experiment, the loss of neurons involved in encoding the
-visual inputs results in the simulated brain being unable to condition its
-grasp for the object shape. Likewise, the co-processor doesn't have sufficient
-information to improve performance. The lesioned circuit largely 
+This experiment demonstrates the ability for the co-processor to succeed after the
+patient has lost some of the neural machinery responsible for representing the task.
+In the non-coadaptive version of this experiment, the loss of AIP neurons involved
+in encoding the visual inputs results in the simulated brain being unable to
+condition its grasp for the object shape, though reaching largely still succeeds.
+Likewise, the co-processor doesn't have sufficient information to improve performance.
+In this case, the co-processor is effectively unable to improve on existing performance,
+for lack of that information.
 
-In the co-adaptive case, 
+In the co-adaptive case, the brain and co-processor find a solution that largely recovers
+performance. This demonstrates that the co-processor can adapt to the non-stationarity
+of the mapping between the observed brain activity and the optimal stimulation. Note,
+though, that the simulation is not designed to indicate if the co-processor speeds up
+recovery, or results in greater results than natural recovery, since the simulation
+is not designed to answer that question.
 
-See Fig. \ref{fig:results}.
+Additionally, in Fig. \ref{fig:results} we see that initially the co-processor and
+brain did not strongly separate the object classes, but that they learned to as the
+training proceeded. This is again due to the co-processor and brain learning how
+to map the input visual information on to the task.
 
 \subsection{Experiment 2: M1 75\% lesion}
-\subsection{Experiment 3: F5 and M1 connectivity lesion}
-\subsection{Experiment 4: M1 lesion with pre-recovery}
-
-TODO: summary of conclusions that will go here:
-
-TODO:
-* AIP + coadaptation shows that we can adapt to changes in the input mappings.
+TODO: after final results
 * M1 + coadaptation shows we can adapt to changes in the output mappings
-* Connection lesion shows we can act as a bridge
+* Initially, performance improves orders of magnitude more quickly than later. 50-75\% recovery during this phase. This appears to be the co-processor learning the task structure (e.g. not to move the hand until after the hold signal is lifted).
+* Later: fine tuning and object class separation. Learning task structure.
 
-\begin{itemize}
-	\item Task performance improves drastically. In all cases, performance is still improving slowly when I stop the simulation.
-		\begin{itemize}
-			\item 90\% on connection lesion, both with and without co-adaptation
-			\item M1 50\%: 81\% recovery with and without co-adpation. The co-processor is having trouble finding a better solution than this, due to loss in brain functionality. Increasing the rate of brain co-adaptation may show a better solution.
-			\item AIP 50\%: 53\% recovery w/co-adaptation so far; still running. The loss was very low to start with, and recovery depends heavily on co-adaptation, so training is slow. Without co-adaptation, the co-processor cannot learn well, because too much encoding machinery is lost.
-			\item Waiting on pre-recovery result. Unclear if the co-processor will help or not.
-		\end{itemize}
-	\item Initially, performance improves orders of magnitude more quickly than later. 50-75\% recovery during this phase. This appears to be the co-processor learning the task structure (e.g. not to move the hand until after the hold signal is lifted).
-	\item Fine tuning takes a far longer time
-	\item This may have some connection to object class separation; show class sep metric side-by-side. (I have the data in hand, but haven't tried to correlate it to recovery yet).
-	\item Training efficiency analysis. The majority of epochs (80\%; depends on experiment type) are EN training epochs, so most efficiency gains will be there.
-	\item Can co-adapt with the brain, as it changes
-	\item Compare co-adaptive case vs not. Some tasks will be impossible to accomplish without the two cooperating, if enough cortex has been lost. (waiting for new results to confirm)
-	\item Show pre-recovery results; co-processor will hopefully improve beyond what recovery can achieve. Initial result: the co-adaptive case found a better solution. The co-processor couldn't improve yet on the pre-recovery case. The solution it found was (basically) to ignore the inputs.
-\end{itemize}
+\subsection{Experiment 3: F5 and M1 connectivity lesion}
+As in the other cases, the co-processor's loss in this experiment improved
+quickly, initially, but takes a long time to refine. During that refinement,
+object differentiation occurs. Note that in this experiment, no information
+can propagate forward to the M1 module, since we have completely severed the
+input connections to that module. It is the sole responsibility of the
+co-processor to perform that forward-propagation. As a result, co-adaptation
+only affects the M1 module. The co-processor's learning algorithm successfully
+adapted to this case, where the observed brain activity was stationary, but
+the mapping between stimulation and task performance was not.
+
+
+\subsection{Experiment 4: M1 lesion with pre-recovery}
+In this case, we simulate some amount of recovery prior to the co-processor
 
 \section{Discussion and Future Work}
 \label{sec:discussion}
