@@ -1,5 +1,6 @@
 import copy
 import json
+import logging
 
 import attr
 import torch.nn
@@ -9,6 +10,7 @@ from .utils import render_none_or_float
 
 _G_MSELOSS = torch.nn.MSELoss()
 
+g_logger = logging.getLogger("stats")
 
 def calc_task_loss(actuals, targets):
     return _G_MSELOSS(actuals, targets[:, 1:, :])
@@ -46,6 +48,8 @@ class LossHistory:
 
         self.lesioned_loss = lesioned_loss
         self.healthy_loss = healthy_loss
+
+        g_logger.info("Healthy loss: %0.8f, Lesioned loss: %0.8f", lesioned_loss, healthy_loss)
 
         self.eidx = 0
 
