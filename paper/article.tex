@@ -961,8 +961,10 @@ the activations in the output layer, resulting in a reduced ability to recreate
 the target grasps.
 
 In the co-adapative case, performance likewise hits an inflexion point, but
-continues to improve slowly.  TODO: finish once we have the faster co-adaptation
-rate tested.
+continues to improve slowly. The ability to improve further is tied to the
+simulated recovery. The co-processor in this later phase of training is
+tasked with adapting to the non-stationarity that results from the recovery
+process, which it does successfully.
 
 \subsection{Experiment 3: F5 and M1 connectivity lesion}
 As in the other cases, the co-processor's loss in this experiment improves
