@@ -77,7 +77,7 @@ neural circuit, allowing it to seek optimal stimulation policies, and adapt them
 as the neural circuit changes. The results presented here demonstrate a
 neural co-processor for the first time, through the use of a simulation. We
 explore some of the core algorithms that may allow co-processors to successfully
-learn and to adapt to non-stationarity in both the brain and sensors.
+learn, and to adapt to non-stationarity in both the brain and sensors.
 \textit{Approach} We provide the first proof-of-concept of a neural co-processor that
 leverages deep learning, through the use of a simulated neural circuit.
 That circuit performs a reach-to-grasp task, based on visual input, and is designed to
@@ -91,8 +91,9 @@ demonstrated here adapts to a variety of lesion types, and to ongoing changes in
 simulated brain.
 \textit{Significance} The proof-of-concept here outlines a co-processor model, as well
 as our approach to training it, leading to insights on how such a model may be
-developed for \textit{in vivo} use. We believe this co-processor design will allow for
-learning complex stimulation policies that help restore function to a stroke victim.
+developed for \textit{in vivo} use. We believe this co-processor design has potential to
+learn complex stimulation policies, leading to application in treating a variety of
+diseases.
 \end{abstract}
 
 \vspace{2pc}
@@ -191,7 +192,7 @@ therefore needs to be proactively adapted in response. This need is even
 greater over longer time scales as the effects of plasticity and ageing change
 the connectivity of the brain. Closed-loop stimulation may also provide means
 to better regulate the energy use of an implanted stimulator, allowing it to
-intelligently regulate when to apply stimulation, in order to presever implant
+intelligently regulate when to apply stimulation, in order to preserve implant
 battery life. Closed-loop stimulation also offers an opportunity minimize
 side-effects of stimulation, through real time regulation
 of the stimulation parameters, such as in the use of deep brain stimulation (DBS) in
@@ -220,15 +221,15 @@ due in large part to the variability of circuits from subject-to-subject,
 as well as variations in the placement of sensors and stimulators in the
 brain. The only plausible path to such a real time controller is to parameterize
 it in a subject- and time-specific way. Our model seeks to accomplish that using
-deep learning, together with a data-efficient approach to training.
+deep learning.
 
 Before attempting \textit{in vivo} experiments using such a model, we first demonstrate
 here a number of crucial design elements of it, through the use of a simulated
 grasping circuit, presented previously by Michaels et al. \cite{michaels.mrnn}. We
-explore the properties of the artificial neural networks (ANNs) that are needed to
+explore the properties of the co-processor design that are needed to
 successfully adapt to the long-running dynamics of a stimulated neural circuit,
 as well as to adapt to that circuit's ongoing connectivity changes.
-We additionally present a training method our co-processor, allowing it to learn
+We additionally present a training method for our co-processor, allowing it to learn
 an optimal stimulation pattern that drives improvements in external task performance,
 while also adapting to the non-stationarity of the brain.
 
@@ -307,10 +308,10 @@ it was stimulating, and we use them as a result.
 \subsection{Simulation Overview}
 We demonstrate our approach here using a simulated grasping circuit.
 A detailed simulation such as this allows us to explore some of the critical
-architectural details and training algorithms for a co-processor of this type.
-By first doing such exploration in simulation, we are able to rapidly and
-cheaply iterate on our design, prior to any \textit{in vivo} experiments.
-For the simulation to be admissible, we need to ensure it has some
+architectural details and training algorithms that will allow a co-processor
+to succeed.  By first doing such exploration in simulation, we are able to
+rapidly and cheaply iterate on our design, prior to any \textit{in vivo}
+experiments. For the simulation to be admissible, we need to ensure it has some
 properties that allow it to strongly indicate if our design is improving in
 a direction that will later allow for real deployments. Otherwise, our
 design may be adapting to the pecularities of the simulation, without
@@ -326,7 +327,7 @@ we first need to design our approach through the use of an admissible simulation
 The authors in this case simulated lesions by effectively removing parts of their
 simulated network, or by cutting connections between parts of the network.
 Here, we use an established design for an artificial neural circuit which
-performs a grasping task, whose architecture and training methods were designed
+performs a grasping task. Its architecture and training methods were designed
 specifically to result in naturalistic dynamics.
 
 The simulated circuit, from Michaels et al. \cite{michaels.mrnn}, was trained
@@ -378,11 +379,12 @@ refers to the fact that the activity of the module receiving the visual inputs r
 the AIP activity of the monkey subject from the same trials. Likewise, the second and
 third modules resemble the natural activity from the monkey's F5 and M1 regions, respectively.
 The emergent network dynamics show a number of other correspondences to the monkeys' natural
-brain activity as well, as detailed in the paper.
+brain activity as well, as detailed in the paper. For convenience, we will refer to these
+modules throughout this paper using the brain region they correspond to.
 
 Importantly, the simulated circuit's activity shows a relatively clear separation of the
 object shapes. That is - the visual information input to the network that differentiates
-one trial from another is leveraged by the circuit to properly condition
+one trial from another is leveraged by the circuit to successfully condition
 the hand shape trajectory for grasping the object of that trial's particular shape, size, and
 location. The visual information forward-propagates through the network, through successive
 processing steps, where it is eventually leveraged to recapitulate the grasp appropriate
@@ -418,13 +420,13 @@ the reaching motion generally succeeds, but the finger muscle velocities show a 
 of error - effectively implying that the subject can somewhat reach to grasp, but cannot form a
 grasp appropriate for the object. That suggests that losing a portion of the cortical
 machinery needed to translate or forward-propagate object shape information
-to movement-related cortex can result in a reduced ability to form the hand properly for
-the grasp, though positioning of the hand may still roughly succeed. Muscle spasticity of
+to movement-related cortex can result in a reduced ability to pose the hand, though
+positioning of the hand may still roughly succeed. Muscle spasticity of
 the hand is also a common symptom of certain strokes in primates, and indeed many who
-suffer from it are still able to position their hand, even while being unable to form
+suffer from tem are still able to position their hand, even while being unable to form
 it properly for a grasp \cite{khanna.openloop}. In that sense, the error mode of this
-simulated lesion closely resembles natural stroke symptoms. However, the simulation is not
-intended to constitute a physical model of a lesion, i.e. to directly explain the
+simulated lesion closely resembles natural stroke symptoms. However, the simulation is
+not intended to constitute a physical model of a lesion, i.e. to directly explain the
 connection between hand spasticity and the lesion.
 
 Conversely, if we lesion of a portion of the output module of the Michaels mRNN, roughly
@@ -457,14 +459,14 @@ See Fig. \ref{fig:lesion} for examples.
 The co-processor's task in our simulation will be identifying the appropriate information,
 read from the mRNN's activations, for conditioning the stimulation. The co-processor seeks
 to effectively bridge across the lesion, forward propagating the object shape and task
-structyure information, indirectly, through the use of stimulation.
+structure information, indirectly, through the use of stimulation.
 
 In our experiments below, we demonstrate our co-processor design on three types of
 simulated lesions:
 \begin{itemize}
 	\item \textbf{Output-based (AIP):} we force the output of some proportion of ``AIP''
 	      neurons to zero, effectively removing them from the network. This results in a
-	      loss of object shape information until the brain co-adapts to the lesion.
+	      loss of object shape information.
 	\item \textbf{Connection-based:} we prevent the propagation of
 	      information between the ``F5'' and ``M1'' modules, effectively representing a
 	      severing of the connections between the two. Note that the sparse connections
@@ -486,7 +488,7 @@ stimulation. Our simulated grasping circuit exhibits the same behavior.
 To illustrate this, suppose we applied a small, one-time, instantaneous perturbation
 of the hidden state of 10 randomly chosen neurons in the output (M1) module at some point
 in time during a trial. If we repeat that experiment many times, we can see what the
-distribution of long- running effects tends to look like.
+distribution of long-running effects tends to look like on the output muscle velocities.
 
 In Fig. \ref{fig:dynamics} we can see that even a single, one-time perturbation in
 the network has effects dozens of time steps later. Our co-processor will need to
@@ -546,9 +548,9 @@ The intent with this approach is not to create a realistic biophysical model. Th
 mRNN model does not contain sufficient information to arrange the neurons in a
 simulated space, and to simulate how that may change the effects of stimulation.
 Instead, our stimulation model is merely attempting to make the co-processor's task
-more realistic, in the sense that it cannot precisely set the hidden state of every
-neuron, instantaneously and in each time step. Any stimulation it applies will diffuse
-across ``space'' and time.
+more realistically difficult, in the sense that it cannot precisely set the hidden
+state of every neuron, instantaneously and in each time step. Any stimulation it
+applies will diffuse across ``space'' and time.
 
 In our experiments, we stimulate only the output module, since this co-processor's
 purpose is to improve external task performance, which it is able to do with
@@ -582,11 +584,11 @@ value, and clearly if we set it to extreme values, it makes our simulation less 
 For example, if it is set to an extreme high value, the stimulation is effectively
 lower dimensional, resulting in a model corresponding to a stimulation technology that
 is inappropriately low resolution for our task, for example epidural stimulation.
-However, we cannot conclude much from these experiments, because this simulation does
+We could not conclude much from such an experiment, because this simulation does
 not constitute a biophysical model, where we can identify some realistic value. The
 purpose of this smoothing technique is only to make the co-processor's job harder in
-the simple sense that it cannot target neurons individually.
-As a result, we set it to a moderate, balanced value, and don't vary it.
+the simple sense that it cannot target neurons individually. As a result, we set it
+to a moderate, balanced value, and don't vary it.
 
 Thus, the governing equations of the stimulation become:
 
@@ -638,7 +640,7 @@ from the first two modules, and stimulation is applied to the last module. This 
 is intended to capture the difficulties with observing the same region that you are
 stimulating, due to stimulation artifacts. The trial we show depicts stimulation
 supplied by a highly trained co-processor, where task performance has been
-largely restored. We explain this experiment in more detail below.
+significantly restored. We explain this experiment in more detail below.
 
 \begin{figure}[h]
 	\centering
@@ -681,7 +683,7 @@ is set arbitrarily to a relatively low rate of $1e-7$. The learning
 rate was not chosen in a principled way, since we are not aware of a
 principled way of choosing it. However, we reason that it should be
 lower than the co-processor by orders of magnitude due
-to the rapidity with which an ANN can be retrained.
+to the rapidity with which an ANN can be retrained in practice.
 
 \subsubsection{Simulating recovery prior to co-processor use}
 We sought to additonally re-train the mRNN after applying the lesion in
@@ -689,7 +691,7 @@ order to simulate stroke recovery. For our simulated lesions which zero
 the outputs of neurons, the mRNN cannot supply an appropriate pre-recovery model.
 We know that strokes can cause damage from which the subject, in many cases,
 cannot recover. The mRNN model has sufficient redundancy built into it that
-lesioning the outputs of large numbers of neurons leaves enough remaining
+lesioning the outputs of large numbers of neurons often leaves enough remaining
 degrees of freedom that a nearly full recovery can occur, unless so many
 neurons are lesioned that no stimulation could be effective.
 
@@ -742,7 +744,7 @@ For the EN to be useful, it must accurately predict the effect of stimulation
 produced by the CPN. In addition to that, backpropagating through it must yield
 gradients which train the CPN to output more useful stimulation. We discovered that
 this latter property does not occur simply by virtue of the former.
-We have found that an EN can be trained to high levels of predictive power, even
+An EN of this design can be trained to high levels of predictive power, even
 on random stimulation, and to orders of magnitude lower loss than the task loss,
 while at the same time backpropagation through it yields gradients which are not
 useful for training the CPN. As a result, if the EN is not trained in specific ways,
@@ -812,7 +814,7 @@ that phase, the learning rate can be quite high. Later, the CPN begins to learn 
 the object shape information observed from the simulated brain, and how that should map onto
 stimulation. That phase of the training takes much longer, and requires a learning rate 2-3
 orders of magnitude lower than in the first phase. We will cover this in some more detail in
-Section \ref{sec:results}.
+the Results section (Section \ref{sec:results}).
 
 \subsubsection{Interleaved CPN/EN training, and adapting to non-stationarity}
 Having defined the training periods for the EN and CPN, we can define a training
@@ -943,8 +945,7 @@ In the co-adaptive case, the brain and co-processor find a solution that largely
 performance. This demonstrates that the co-processor can adapt to the non-stationarity
 of the mapping between the observed brain activity and the optimal stimulation. Note,
 though, that the simulation is not designed to indicate if the co-processor speeds up
-recovery, or results in greater results than natural recovery, since the simulation
-is not designed to answer that question.
+recovery, or results in greater results than natural recovery>
 
 Additionally, in Fig. \ref{fig:results} we see that initially the co-processor and
 brain did not strongly separate the object classes, but that they learned to as the
@@ -953,7 +954,7 @@ to map the input visual information on to the task.
 
 \subsection{Experiment 2: M1 75\% lesion}
 In this experiment, 75\% of the output module of the simulated network has been
-lesioned. In the coadaptive case, the co-processor needs to adapt to
+lesioned. In the co-adaptive case, the co-processor needs to adapt to
 non-stationarity in the mapping between stimulation and task performance.
 In the non-coadaptive case, training quickly plateaus, and does not improve
 thereafter. That suggests we have lost some of our degrees of freedom to control
@@ -962,21 +963,23 @@ the target grasps.
 
 In the co-adapative case, performance likewise hits an inflexion point, but
 continues to improve slowly. The ability to improve further is tied to the
-simulated recovery. The co-processor in this later phase of training is
-tasked with adapting to the non-stationarity that results from the recovery
-process, which it does successfully.
+simulated recovery restoring the degrees of freedom needed for success. The
+co-processor in this later phase of training is tasked with adapting to the
+non-stationarity that results from the recovery process, which it does
+successfully.
 
 \subsection{Experiment 3: F5 and M1 connectivity lesion}
 As in the other cases, the co-processor's loss in this experiment improves
 quickly, initially, but taskes much longer to refine. During that refinement,
 object differentiation occurs. Note that in this experiment, no information
-can propagate forward to the M1 module, since we have completely severed the
-input connections to that module. It is the sole responsibility of the
-co-processor to perform that forward-propagation.
+can propagate forward to the M1 module, or backwards from it, since we have
+completely severed the inter-module connections involving that module. It is
+the sole responsibility of the co-processor to perform that
+forward-propagation.
 
 In this case, co-adaptation only affects the M1 module, since we have nothing
 to use as a learning signal: there is no backpropagation to the AIP and
-F5 modules. As a result, this experiment primarily demonstrates that the
+F5 modules. As a result, this experiment demonstrates that the
 co-processor's learning algorithm is capable of adapting to non-stationarity
 in the mapping between stimulation parameters and task performance. Contrast
 that with the results of Experiment 1, where the non-stationarity affected
@@ -990,10 +993,11 @@ the pre-recovery causes the simulated brain to learn an object-agnostic
 stereotyped grasp. The co-processor's job is to forward-propagate the
 information necessary to condition the grasp on the object shape.
 
-The co-processor in this scenario successfully improved task performance.
-Note that the object class separation metric $S$ returned to
-a healthy value towards the end of the training, indicating that the
-learned solution did not simply refine the stereotyped grasp.
+The co-processor in this scenario successfully improved task performance
+beyond the recovery point. Note that the object class separation metric
+$S$ returned to a healthy value towards the end of the training,
+indicating that the learned solution did not simply refine the
+stereotyped grasp.
 
 \section{Discussion and Future Work}
 \label{sec:discussion}
@@ -1006,8 +1010,8 @@ to task performance. We base our demonstration on a simulation of a neural circu
 an external grasping task.
 
 Our co-processor design adapts well to a variety of simulated lesion types, reducing task loss
-50-90\% across our various experiments. To work this well, the co-processor needed to adapt to
-the long-running dynamics of the stimulated network, as well as the long-running effects of
+75-90\% across our various experiments. To work this well, the co-processor needed to adapt to
+the long-running dynamics of the simulated network, as well as the long-running effects of
 stimulation. In some experiments we required it to additionally adapt to non-stationarity in
 the neural circuit, which was actively changing at the same time the co-processor was learning.
 It achieved that as well, co-adapting with the simulated brain to improve external task
@@ -1025,14 +1029,14 @@ remains largely out of reach \cite{khanna.openloop}. What, then, does our simula
 Abstractly, the co-processor lends itself to any closed-loop neural stimulation problem
 where a relevant stimulation model can be identified. There are many lower dimensional problems
 today which we address with far simpler stimulation regimes than would be necessary for
-e.g. remediating the symptoms of a stroke. In some applications, such as PD symptom relief,
+e.g. fine-grained finger control. In some applications, such as PD symptom relief,
 stimulation is often parameterized by a single off-vs-on parameter, or a small handful of
 parameters, where the key challenge is learning when to apply the stimulation, and
-its shape and power. Our simulation demonstrates the ability of our training method to adapt to
-higher dimensional problems than these, where additionally the long-running effects of
-stimulation on the intended figure-of-merit must be modeled. These properties together
-suggest it may be useful in lower dimensional problems where a stimulation model can be
-estimated, and stimulation parameters can be tied to the target objective.
+its shape and power. Our simulation demonstrates the ability of our training method to
+adapt to higher dimensional problems than these, where additionally the long-running
+effects of stimulation on the intended figure-of-merit must be modeled. These properties
+together suggest it may be useful in lower dimensional problems where a stimulation model
+can be estimated, and stimulation parameters can be tied to the target objective.
 
 Our future work will include a reinforcement learning (RL) approach, where the co-processor
 explicitly learns when to apply stimulation, in addition to parameterizing it. Its target
@@ -1091,7 +1095,7 @@ We have demonstrated a general framework for training a closed-loop neural stimu
 called a ``neural co-processor''. We outlined one specific co-processor design, and
 outlined an approach to training it using supervised learning. In simulation it
 successfully learned to alleviate some of the effects of a brain lesion. To do so, it
-needed to co-adapt to the simulated brain, which exhibited non-stationarity. Additionally,
+needed to co-adapt with the simulated brain, which exhibited non-stationarity. Additionally,
 it needed to learn long-running effects of the stimulation it learned to apply. Because of
 these properites, the co-processor approach likely generalizes well to a wide range of
 clinical applications where closed-loop neural stimulation is appropriate.
