@@ -74,8 +74,8 @@ def get_aip_lesion_config(cuda=None, coadapt=True, **kwargs):
     )
 
 
-def get_config(recover_after_lesion=False, coadapt=False, num_stim_neurons=None,
-        stim_pad_right_neurons=config.DEFAULT_STIM_PAD_RIGHT_NEURONS,
+def get_config(recover_after_lesion=False, coadapt=False, dont_train=False,
+        num_stim_neurons=None, stim_pad_right_neurons=config.DEFAULT_STIM_PAD_RIGHT_NEURONS,
         cuda=None, **kwargs):
     """
     Args:
@@ -99,6 +99,7 @@ def get_config(recover_after_lesion=False, coadapt=False, num_stim_neurons=None,
         num_stim_neurons=num_stim_neurons,
         stim_pad_right_neurons=stim_pad_right_neurons,
         coadapt=coadapt,
+        dont_train=dont_train,
         cuda=cuda_out,
         **kwargs,
     )
@@ -380,7 +381,7 @@ class Experiment:
             result = self._coproc_finish(self.loss_history)
             should_stop, next_is_validation, user_data = result.unpack()
 
-            if self.cfg.coadapt and (self.loss_history.eidx % 5) == 0:
+            if self.cfg.coadapt and ((self.loss_history.eidx % 5) == 0 or self.cfg.dont_train):
                 loss = torch.nn.MSELoss()(actuals, dout[:, 1:, :])
                 loss.backward(inputs=list(self.mike.parameters()))
                 if self.cfg.lesion_instance.application == "connection":

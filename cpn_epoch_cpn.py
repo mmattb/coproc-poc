@@ -5,7 +5,7 @@ import experiment.utils as utils
 
 
 class CPNEpochCPN:
-    def __init__(self, en, opt_en, cpn, opt_cpn, cfg):
+    def __init__(self, en, opt_en, cpn, opt_cpn, cfg, model_path=None):
         self.en = en
         self.opt_en = opt_en
 
@@ -13,6 +13,9 @@ class CPNEpochCPN:
         self.opt_cpn = opt_cpn
         for p in opt_cpn.param_groups:
             p["lr"] = 1e-3
+
+        if model_path is not None:
+            cpn.load_state_dict(torch.load(model_path))
 
         self.cfg = cfg
 
@@ -87,6 +90,7 @@ class CPNEpochCPN:
         return new_stim
 
     def feedback(self, actuals, targets, trial_end, loss_history, is_validation):
+
         preds = torch.cat(self.preds, axis=1)
         preds = utils.trunc_to_trial_end(preds, trial_end[:, :-1, :])
 
@@ -103,7 +107,8 @@ class CPNEpochCPN:
             self.recent_train_val_loss = train_loss.item()
         else:
             self.recent_train_loss = train_loss.item()
-            train_loss.backward(inputs=list(self.cpn.parameters()))
+            if not self.cfg.dont_train:
+                train_loss.backward(inputs=list(self.cpn.parameters()))
 
         self.recent_pred_loss = pred_loss.item()
 
@@ -145,6 +150,7 @@ class CPNEpochCPN:
 
     def lr_sched_aggressive_refine3(self, rtl, eidx):
         """
+        Seems to work for M1 co-adapt.
         Args:
             rtl - recent training loss, which we use to determine the learning rate
         """
@@ -205,13 +211,20 @@ class CPNEpochCPN:
 
         rtl = loss_history.recent_task_loss
         self.recent_task_losses.append(rtl)
-        if loss_history.max_pct_recov > 0.9:
+        if loss_history.max_pct_recov > 0.9 and not self.cfg.dont_train:
+            we_are_done = True
+            en_is_ready = False
+        # For now: just run for awhile
+        elif self.cfg.dont_train and loss_history.eidx == 200000:
             we_are_done = True
             en_is_ready = False
         else:
             we_are_done = False
 
-            if self.recent_pred_loss > max(rtl / 10, 6e-4):
+            if self.cfg.dont_train:
+                en_is_ready = True
+                self.reset_period()
+            elif self.recent_pred_loss > max(rtl / 10, 6e-4):
                 en_is_ready = False
                 self.reset_period()
             elif self.checkpoint_eidx >= 100:

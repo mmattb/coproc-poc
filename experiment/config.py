@@ -34,6 +34,7 @@ class Config:
     loader_test: torch.utils.data.DataLoader
     recover_after_lesion: bool
     coadapt: bool
+    dont_train: bool
     drop_m1: bool
     cuda: typing.Any
 
@@ -85,6 +86,7 @@ DEFAULT_OBS_OUT_DIM = 20
 DEFAULT_OBS_SIGMA = 1.75
 DEFAULT_NUM_STIM_CHANNELS = 16
 DEFAULT_STIM_SIGMA = 2.175
+DEFAULT_STIM_DECAY = 0.3
 DEFAULT_STIM_PAD_LEFT_NEURONS = 0
 DEFAULT_STIM_PAD_RIGHT_NEURONS = 200
 DEFAULT_OUT_DIM = 50
@@ -150,6 +152,7 @@ def get(
     num_stim_channels=DEFAULT_NUM_STIM_CHANNELS,
     num_stim_neurons=None,
     stim_sigma=DEFAULT_STIM_SIGMA,
+    stim_decay=DEFAULT_STIM_DECAY,
     stim_pad_left_neurons=DEFAULT_STIM_PAD_LEFT_NEURONS,
     stim_pad_right_neurons=DEFAULT_STIM_PAD_RIGHT_NEURONS,
     stim_retain_grad=False,
@@ -159,6 +162,7 @@ def get(
     holdout_pct=DEFAULT_HOLDOUT_PCT,
     recover_after_lesion=False,
     coadapt=False,
+    dont_train=False,
     drop_m1=False,
     cuda=None,
 ):
@@ -207,10 +211,11 @@ def get(
             num_stim_neurons,
             batch_size=1,  # Will be reset before use
             sigma=stim_sigma,
+            decay=stim_decay,
             retain_grad=stim_retain_grad,
             pad_left_neurons=stim_pad_left_neurons,
             pad_right_neurons=stim_pad_right_neurons,
-            cuda=cuda,
+            cuda=cuda
         )
     else:
         raise ValueError(f"Unrecognized stimulation type: {stimulation_type}")
@@ -281,6 +286,7 @@ def get(
         loader_test,
         recover_after_lesion,
         coadapt,
+        dont_train,
         drop_m1,
         cuda,
     )

@@ -14,6 +14,10 @@ from cpn_utils import EpochType
 from experiment import experiment
 import stim_model
 
+MODEL_FILENAME_CPN = "cpn.model"
+MODEL_FILENAME_EN = "en.model"
+MODEL_FILENAME_MIKE = "mike.model"
+
 g_logger = logging.getLogger("cpn")
 
 
@@ -23,6 +27,19 @@ class CPN_EN_CoProc(experiment.CoProc):
 
         in_dim, stim_dim, out_dim, cuda = cfg.unpack()
 
+        self.uuid = uuid.uuid4()
+        if log_dir is not None:
+            if cfg.dont_train:
+                self.log_dir = os.path.join(log_dir, "phase2")
+                os.makedirs(self.log_dir)
+            else:
+                self.log_dir = os.path.join(log_dir, cfg.cfg_str, str(self.uuid))
+                os.makedirs(self.log_dir)
+
+            print("Log dir will be:", self.log_dir)
+        else:
+            self.log_dir = None
+        
         self.cpn = cpn_model.CPNModelLSTM(
             in_dim,
             stim_dim,
@@ -54,18 +71,21 @@ class CPN_EN_CoProc(experiment.CoProc):
         self.en_epoch = cpn_epoch_en.CPNEpochEN(
             self.en, self.opt_en, self.cpn, self.opt_cpn, self.cfg
         )
-        self.cpn_epoch = cpn_epoch_cpn.CPNEpochCPN(
-            self.en, self.opt_en, self.cpn, self.opt_cpn, self.cfg
-        )
 
-        self.uuid = uuid.uuid4()
-        if log_dir is not None:
-            self.log_dir = os.path.join(log_dir, cfg.cfg_str, str(self.uuid))
-            os.makedirs(self.log_dir)
-
-            print("Log dir will be:", self.log_dir)
+        # If we aren't training, it means we trained already. At
+        # lease that is the interface for now. It also means we
+        # are loading an existing cpn.model from a fully qualified
+        # log dir path. Again - just a very assumption heavy
+        # cfg.
+        if cfg.dont_train:
+            cpn_model_path = os.path.join(log_dir, MODEL_FILENAME_CPN)
         else:
-            self.log_dir = None
+            cpn_model_path = None
+
+        self.cpn_epoch = cpn_epoch_cpn.CPNEpochCPN(
+            self.en, self.opt_en, self.cpn, self.opt_cpn, self.cfg,
+            model_path=cpn_model_path,
+        )
 
         self.recycle_thresh = recycle_thresh
         # A list of up to recycle_thresh length
@@ -84,15 +104,25 @@ class CPN_EN_CoProc(experiment.CoProc):
 
     def reset(self):
         self.cpn_epoch.reset_period()
-        self.epoch_type = EpochType.EN
+
+        if self.cfg.dont_train:
+            self.epoch_type = EpochType.CPN
+        else:
+            self.epoch_type = EpochType.EN
 
         self.en, self.opt_en = self.en_epoch.reset_en()
         self.cpn_epoch.set_en(self.en, self.opt_en)
 
-        for param in self.cpn.parameters():
-            param.requires_grad = False
-        for param in self.en.parameters():
-            param.requires_grad = True
+        if self.cfg.dont_train:
+            for param in self.cpn.parameters():
+                param.requires_grad = False
+            for param in self.en.parameters():
+                param.requires_grad = False 
+        else:
+            for param in self.cpn.parameters():
+                param.requires_grad = False
+            for param in self.en.parameters():
+                param.requires_grad = True
 
         self.reset_soft()
 
@@ -149,8 +179,6 @@ class CPN_EN_CoProc(experiment.CoProc):
         trial_len = len(self.saved_data[0][4])
 
         is_validation = next_is_validation
-
-
 
         last_pred_loss = 1
         if user_data is not None:
@@ -301,9 +329,9 @@ class CPN_EN_CoProc(experiment.CoProc):
                     json.dump(loss_history.render(), f)
                     f.flush()
 
-                cpn_path = os.path.join(self.log_dir, "cpn.model")
-                en_path = os.path.join(self.log_dir, "en.model")
-                mike_path = os.path.join(self.log_dir, "mike.model")
+                cpn_path = os.path.join(self.log_dir, MODEL_FILENAME_CPN)
+                en_path = os.path.join(self.log_dir, MODEL_FILENAME_EN)
+                mike_path = os.path.join(self.log_dir, MODEL_FILENAME_MIKE)
 
                 torch.save(self.cpn.state_dict(), cpn_path)
                 torch.save(self.en.state_dict(), en_path)

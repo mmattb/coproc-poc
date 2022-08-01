@@ -293,7 +293,7 @@ class StimulusGaussianExp(Stimulus):
         return stim_out
 
     def __str__(self):
-        return f"gaussianExp{self.out_dim}.{self._sigma}"
+        return f"gaussianExp{self.out_dim}.sig{self._sigma}.decay{self._decay}"
 
 
 class StimulationType(enum.Enum):
