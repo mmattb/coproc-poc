@@ -168,12 +168,12 @@ class CoProc:
         pass
 
 
-def stage(coproc, cfg):
-    return Experiment(coproc, cfg)
+def stage(coproc, cfg, mike_load_path=None):
+    return Experiment(coproc, cfg, mike_load_path=mike_load_path)
 
 
 class Experiment:
-    def __init__(self, coproc, cfg):
+    def __init__(self, coproc, cfg, mike_load_path=None):
         self._coproc = coproc
 
         self._cfg = cfg
@@ -186,14 +186,6 @@ class Experiment:
         mike.set_lesion(cfg.lesion_instance)
 
         self.mike = mike
-        self.opt_mike = AdamW(self.mike.parameters(), lr=1e-7)
-
-        if self.cfg.coadapt:
-            for param in self.mike.parameters():
-                param.requires_grad = True
-        else:
-            for param in self.mike.parameters():
-                param.requires_grad = False
 
         if cfg.recover_after_lesion:
             model_path = os.path.join(RECOV_MODEL_PATH, "recovered_mrnn_%s.model" %
@@ -208,20 +200,33 @@ class Experiment:
                         str(cfg.lesion_instance), model_path))
                 raise
 
-            self.opt_mike = AdamW(self.mike.parameters(), lr=1e-7)
+        elif mike_load_path is not None:
+            self.mike.load_weights_from_file(mike_load_path)
+
+        if self.cfg.coadapt:
+            for param in self.mike.parameters():
+                param.requires_grad = True
+        else:
+            for param in self.mike.parameters():
+                param.requires_grad = False
+        self.opt_mike = AdamW(self.mike.parameters(), lr=1e-7)
 
         self.observer = cfg.observer_instance
 
         (
             self.comp_loss_healthy,
+            self.comp_loss_healthy_hand,
             self.comp_loss_lesioned,
+            self.comp_loss_lesioned_hand,
             self.var_whole_healthy,
             self.var_within_healthy,
         ) = self._get_healthy_vs_lesioned_stats()
 
         self.loss_history = stats.LossHistory(
             self.comp_loss_lesioned.item(),
+            self.comp_loss_lesioned_hand.item(),
             self.comp_loss_healthy.item(),
+            self.comp_loss_healthy_hand.item(),
             self.var_whole_healthy,
             self.var_within_healthy,
         )
@@ -261,6 +266,9 @@ class Experiment:
                 comp_preds_healthy[:, tidx, :] = p[:, :]
             comp_preds_healthy = utils.trunc_to_trial_end(comp_preds_healthy, trial_end)
             comp_loss_healthy = comp_loss(comp_preds_healthy, dout)
+            comp_loss_healthy_hand = comp_loss(comp_preds_healthy[:, :, utils.HAND_MUSCLE_START_IDX:],
+                    dout[:, :, utils.HAND_MUSCLE_START_IDX:])
+
         finally:
             self.mike.set_lesion(self.cfg.lesion_instance)
 
@@ -277,10 +285,13 @@ class Experiment:
             comp_preds_lesioned[:, tidx, :] = p[:, :]
         comp_preds_lesioned = utils.trunc_to_trial_end(comp_preds_lesioned, trial_end)
         comp_loss_lesioned = comp_loss(comp_preds_lesioned, dout)
+        comp_loss_lesioned_hand = comp_loss(comp_preds_lesioned[:, :, utils.HAND_MUSCLE_START_IDX:],
+                dout[:, :, utils.HAND_MUSCLE_START_IDX:])
 
         self.mike.reset()
 
-        return comp_loss_healthy, comp_loss_lesioned, var_whole, var_within
+        return comp_loss_healthy, comp_loss_healthy_hand, comp_loss_lesioned, \
+                comp_loss_lesioned_hand, var_whole, var_within
 
     @property
     def coproc(self):
@@ -318,15 +329,16 @@ class Experiment:
             if is_validation:
 
                 assert (
-                    len(self.cfg.loader_test.dataset) == self.cfg.loader_test.batch_size
+                    len(self.cfg.loader_test[0].dataset) ==
+                        self.cfg.loader_test[0].batch_size
                 )
-                batch = next(iter(self.cfg.loader_test))
+                batch = next(iter(self.cfg.loader_test[0]))
             else:
                 assert (
-                    len(self.cfg.loader_train.dataset)
-                    == self.cfg.loader_train.batch_size
+                    len(self.cfg.loader_train[0].dataset)
+                    == self.cfg.loader_train[0].batch_size
                 )
-                batch = next(iter(self.cfg.loader_train))
+                batch = next(iter(self.cfg.loader_train[0]))
 
             din, trial_end, trial_len, dout, labels = batch
             batch_size = din.shape[0]
@@ -390,6 +402,9 @@ class Experiment:
                     self.mike.set_end_to_end_coadap_grads()
                 self.opt_mike.step()
 
+            if self.cfg.drifting_obs and ((self.loss_history.eidx % 5) == 0):
+                self.observer.step()
+
             self.loss_history.report_user_data(user_data)
 
             if user_data is not None:
@@ -405,5 +420,7 @@ class Experiment:
                 break
 
             is_validation = next_is_validation
+
+            #self.cfg.shuffle_dataset()
 
         return self.loss_history

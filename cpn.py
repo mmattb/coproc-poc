@@ -12,11 +12,13 @@ import cpn_epoch_cpn
 import cpn_epoch_en
 from cpn_utils import EpochType
 from experiment import experiment
+from experiment import observer
 import stim_model
 
 MODEL_FILENAME_CPN = "cpn.model"
 MODEL_FILENAME_EN = "en.model"
 MODEL_FILENAME_MIKE = "mike.model"
+MODEL_FILENAME_OBS = "obs.model"
 
 g_logger = logging.getLogger("cpn")
 
@@ -52,6 +54,24 @@ class CPN_EN_CoProc(experiment.CoProc):
             self.opt_cpn = AdamW(self.cpn.parameters(), lr=4e-3)
         else:
             self.opt_cpn = AdamW(self.cpn.parameters(), lr=1e-3)
+
+        # We are not training the coproc, but the obs function has drifting bias.
+        # Load current bias into the obs instance.
+        if cfg.dont_train and cfg.drifting_obs:
+            assert isinstance(cfg.observer_instance, observer.ObserverGaussian1dDrifting)
+            assert log_dir is not None
+            obs_path = os.path.join(log_dir, MODEL_FILENAME_OBS)
+            print("obs_path:", obs_path)
+            obs_state = torch.load(obs_path)
+
+            obs_bias = obs_state['bias'].cuda(cuda)
+            obs_means = obs_state['means'].cuda(cuda)
+            obs_stdevs = obs_state['stdevs'].cuda(cuda)
+
+            cfg.observer_instance.bias = obs_bias
+            cfg.observer_instance.means = obs_means
+            cfg.observer_instance.stdevs = obs_stdevs
+            print("Observer loaded as:", str(cfg.observer_instance))
 
         en_in_dim = cfg.observer_instance.out_dim + stim_dim + 1
         self.en, self.opt_en = stim_model.get_stim_model(
@@ -332,7 +352,18 @@ class CPN_EN_CoProc(experiment.CoProc):
                 cpn_path = os.path.join(self.log_dir, MODEL_FILENAME_CPN)
                 en_path = os.path.join(self.log_dir, MODEL_FILENAME_EN)
                 mike_path = os.path.join(self.log_dir, MODEL_FILENAME_MIKE)
+                obs_path = os.path.join(self.log_dir, MODEL_FILENAME_OBS)
 
                 torch.save(self.cpn.state_dict(), cpn_path)
                 torch.save(self.en.state_dict(), en_path)
+                torch.save(mike.state_dict(), mike_path)
+
+                if isinstance(self.cfg.observer_instance, observer.ObserverGaussian1dDrifting):
+                    out = {
+                        "bias": self.cfg.observer_instance.bias.cpu(),
+                        "means": self.cfg.observer_instance.means.cpu(),
+                        "stdevs": self.cfg.observer_instance.stdevs.cpu(),
+                    }
+                    torch.save(out, obs_path)
+
                 torch.save(mike.state_dict(), mike_path)

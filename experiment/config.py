@@ -35,8 +35,16 @@ class Config:
     recover_after_lesion: bool
     coadapt: bool
     dont_train: bool
+    drifting_obs: bool
     drop_m1: bool
     cuda: typing.Any
+    holdout_pct: float
+
+    def shuffle_dataset(self):
+        _, self.loader_train[0], self.loader_test[0] = \
+                get_dataset(holdout_pct=self.holdout_pct,
+                            dataset=self.dataset,
+                            cuda=self.cuda)
 
     def unpack(self):
         return (
@@ -100,8 +108,9 @@ def get_raw_data(cuda=None, **kwargs):
     return dataset
 
 
-def _get_dataset(holdout_pct=0.2, cuda=None):
-    dataset = get_raw_data(cuda=cuda)
+def get_dataset(holdout_pct=0.2, dataset=None, cuda=None):
+    if dataset is None:
+        dataset = get_raw_data(cuda=cuda)
 
     probs = torch.ones(len(dataset)) / float(len(dataset))
     holdout_count = int(len(dataset) * holdout_pct)
@@ -163,6 +172,7 @@ def get(
     recover_after_lesion=False,
     coadapt=False,
     dont_train=False,
+    drifting_obs=False,
     drop_m1=False,
     cuda=None,
 ):
@@ -170,6 +180,10 @@ def get(
     if observer_type is observer.ObserverType.passthrough:
         observer_instance = observer_type.value(num_neurons_per_module)
     elif observer_type is observer.ObserverType.gaussian:
+        observer_instance = observer_type.value(
+            num_neurons_per_module, out_dim=obs_out_dim, sigma=obs_sigma, cuda=cuda
+        )
+    elif observer_type is observer.ObserverType.drifting_gaussian:
         observer_instance = observer_type.value(
             num_neurons_per_module, out_dim=obs_out_dim, sigma=obs_sigma, cuda=cuda
         )
@@ -268,7 +282,7 @@ def get(
         cfg_toks_short.append("coadapt")
     cfg_str_short = "_".join(cfg_toks_short)
 
-    dataset, loader_train, loader_test = _get_dataset(
+    dataset, loader_train, loader_test = get_dataset(
         holdout_pct=holdout_pct, cuda=cuda
     )
 
@@ -282,12 +296,14 @@ def get(
         cfg_str_short,
         out_dim,
         dataset,
-        loader_train,
-        loader_test,
+        [loader_train,],
+        [loader_test,],
         recover_after_lesion,
         coadapt,
         dont_train,
+        drifting_obs,
         drop_m1,
         cuda,
+        holdout_pct,
     )
     return cfg_out

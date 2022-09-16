@@ -6,7 +6,7 @@ import attr
 import torch.nn
 
 from . import class_stdevs
-from .utils import render_none_or_float
+from .utils import render_none_or_float, HAND_MUSCLE_START_IDX
 
 _G_MSELOSS = torch.nn.MSELoss()
 
@@ -30,8 +30,10 @@ class UserData:
 class LossRec:
     eidx: int
     task_loss: float
+    task_loss_hand: float
     task_val_loss: float
     pct_recov: float
+    pct_recov_hand: float
     class_separation: float
     user_data: UserData
 
@@ -40,7 +42,9 @@ class LossHistory:
     def __init__(
         self,
         lesioned_loss,
+        lesioned_loss_hand,
         healthy_loss,
+        healthy_loss_hand,
         var_whole_healthy,
         var_within_healthy,
         adv_stats_report_cadence=7,
@@ -48,7 +52,9 @@ class LossHistory:
         self._recs = []
 
         self.lesioned_loss = lesioned_loss
+        self.lesioned_loss_hand = lesioned_loss_hand
         self.healthy_loss = healthy_loss
+        self.healthy_loss_hand = healthy_loss_hand
 
         g_logger.info(
             "Healthy loss: %0.8f, Lesioned loss: %0.8f", healthy_loss, lesioned_loss
@@ -65,6 +71,12 @@ class LossHistory:
     def calc_pct_recov(self, task_loss):
         dh = task_loss.item() - self.healthy_loss
         dl = self.lesioned_loss - self.healthy_loss
+        recov_pct = 1.0 - (dh / dl)
+        return recov_pct
+
+    def calc_pct_recov_hand(self, task_loss_hand):
+        dh = task_loss_hand.item() - self.healthy_loss_hand
+        dl = self.lesioned_loss_hand - self.healthy_loss_hand
         recov_pct = 1.0 - (dh / dl)
         return recov_pct
 
@@ -86,8 +98,10 @@ class LossHistory:
         rec_rendered = {
             "eidx": rec.eidx,
             "task_loss": render_none_or_float(rec.task_loss),
+            "task_loss_hand": render_none_or_float(rec.task_loss_hand),
             "task_val_loss": render_none_or_float(rec.task_val_loss),
-            "pct_recov": render_none_or_float(rec.pct_recov, fmt="%0.3f"),
+			"pct_recov": render_none_or_float(rec.pct_recov, fmt="%0.3f"),
+            "pct_recov_hand": render_none_or_float(rec.pct_recov_hand, fmt="%0.3f"),
             "class_separation": render_none_or_float(rec.class_separation, fmt="%0.3f"),
         }
 
@@ -115,6 +129,7 @@ class LossHistory:
     def report(
         self,
         task_loss,
+        task_loss_hand,
         task_val_loss=None,
         class_separation=None,
         user_data=None,
@@ -136,7 +151,9 @@ class LossHistory:
         rec = LossRec(
             self.eidx,
             None,
+            None,
             task_val_loss,
+            None,
             None,
             class_separation,
             user_data,
@@ -152,6 +169,14 @@ class LossHistory:
             rec.task_loss = self._recs[-1].task_loss
             rec.pct_recov = self._recs[-1].pct_recov
 
+        if task_loss_hand is not None:
+            rec.task_loss_hand = task_loss_hand.item()
+            pct_recov_hand = self.calc_pct_recov_hand(task_loss_hand)
+            rec.pct_recov_hand = pct_recov_hand
+        elif len(self._recs) > 0:
+            rec.task_loss_hand = self._recs[-1].task_loss_hand
+            rec.pct_recov_hand = self._recs[-1].pct_recov_hand
+
         self._recs.append(rec)
         self.eidx += 1
 
@@ -161,11 +186,14 @@ class LossHistory:
         if update_task_loss:
             class_separation = self.calc_class_separation(actuals, labels)
             task_loss = calc_task_loss(actuals, dout)
+            task_loss_hand = calc_task_loss(actuals[:, :, HAND_MUSCLE_START_IDX:],
+                                            dout[:, :, HAND_MUSCLE_START_IDX:])
         else:
             class_separation = None
             task_loss = None
+            task_loss_hand = None
 
-        self.report(task_loss, class_separation=class_separation, user_data=user_data)
+        self.report(task_loss, task_loss_hand, class_separation=class_separation, user_data=user_data)
 
     def report_val_last_result(
         self, actuals, dout, update_task_loss=True, user_data=None
@@ -175,7 +203,7 @@ class LossHistory:
         else:
             task_val_loss = None
 
-        self.report(None, task_val_loss=task_val_loss, user_data=user_data)
+        self.report(None, None, task_val_loss=task_val_loss, user_data=user_data)
 
     def report_user_data(self, user_data):
         if user_data is not None:

@@ -256,7 +256,6 @@ class MichaelsRNN(nn.Module):
         self.x = None
 
     def reset(self):
-        # 'tis an alias
         self.reset_hidden()
 
     def set_sparse_grads(self):

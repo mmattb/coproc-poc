@@ -16,6 +16,9 @@ def render_none_or_float(val, fmt=LOSS_RENDER_FMT):
     return fmt % val
 
 
+# Identifies hand vs other muscles
+# Based on muscle IDs: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4282829/
+HAND_MUSCLE_START_IDX = 32    # "FDSL" == Flexor digitorum profundus, Digit 5
 
 def array_weights(in_dim, out_dim, distance_func, normalize=False, **dfunckwargs):
     """

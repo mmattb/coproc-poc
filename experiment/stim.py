@@ -198,7 +198,7 @@ class StimulusGaussianExp(Stimulus):
 
         self._sigma = sigma
         self._vals = torch.zeros((batch_size, pad_left_neurons + num_neurons +
-            pad_right_neurons))
+            pad_right_neurons), requires_grad=retain_grad)
         self._decay = decay
         self._norm = norm(0, self._sigma)
         self._retain_grad = retain_grad
@@ -225,7 +225,8 @@ class StimulusGaussianExp(Stimulus):
                     self._num_stim_channels,
                     self._norm.pdf,
                     normalize=True,
-                )
+                ),
+                requires_grad=self._retain_grad
             )
             .float()
             .T
@@ -247,7 +248,7 @@ class StimulusGaussianExp(Stimulus):
         super(StimulusGaussianExp, self).reset(batch_size=batch_size)
         self._vals = torch.zeros(
             (self.batch_size, self.pad_left_neurons + self.num_neurons +
-                self.pad_right_neurons)
+                self.pad_right_neurons), requires_grad=self._retain_grad
         )
 
         if self._retain_grad:
@@ -288,7 +289,7 @@ class StimulusGaussianExp(Stimulus):
             stim_out = self._vals.detach().clone()
 
         # Update vals according to an exponential decay
-        self._vals -= self._vals * self._decay
+        self._vals = self._vals - (self._vals * self._decay)
 
         return stim_out
 
