@@ -296,9 +296,79 @@ class StimulusGaussianExp(Stimulus):
     def __str__(self):
         return f"gaussianExp{self.out_dim}.sig{self._sigma}.decay{self._decay}"
 
+class StimulusPassthrough(Stimulus):
+    def __init__(
+        self,
+        num_stim_channels,
+        num_neurons,
+        pad_left_neurons=0,
+        pad_right_neurons=200,
+        batch_size=1,
+        retain_grad=False,
+        cuda=None,
+    ):
+        assert num_stim_channels == num_neurons, (
+                "Passthrough stim requires num_stim_channels "
+                "== num_neurons")
+
+        super(StimulusPassthrough, self).__init__(
+            num_stim_channels, num_neurons, pad_left_neurons, pad_right_neurons,
+            batch_size=batch_size
+        )
+
+        self._retain_grad = retain_grad
+        self._cuda = cuda
+
+        self._next_stim = None
+        self.reset(batch_size)
+
+    def cuda(self):
+        if self._next_stim is not None:
+            self._next_stim = self._next_stim.cuda(self._cuda)
+
+    def reset(self, batch_size=None):
+        super(StimulusPassthrough, self).reset(batch_size=batch_size)
+
+        self._next_stim = torch.zeros(self._batch_size,
+                self.pad_left_neurons + self.num_neurons + self.pad_right_neurons,
+                device=self._cuda)
+
+        if self._retain_grad:
+            self._next_stim.retain_grad()
+
+        self.cuda()
+
+    def add(self, params):
+        """
+        params: (batch_size, num_stim_channels (i.e. num neurons))
+        """
+        if not self._retain_grad:
+            P = params.clone().detach()
+        else:
+            P = params
+
+        if self._cuda is not None and not P.is_cuda:
+            P = P.cuda(self._cuda)
+
+        start_idx = self.pad_left_neurons
+        end_idx = self.pad_left_neurons + self.num_neurons
+        self._next_stim[:, start_idx:end_idx] = P
+
+    def get_next(self):
+        if self._retain_grad:
+            stim_out = self._next_stim.clone()
+            stim_out.retain_grad()
+        else:
+            stim_out = self._next_stim.detach().clone()
+
+        return stim_out
+
+    def __str__(self):
+        return f"gaussianPassthrough"
 
 class StimulationType(enum.Enum):
     one_to_one = Stimulus1to1
     gaussian_alpha = StimulusGaussian
     gaussian_exp = StimulusGaussianExp
+    passthrough = StimulusPassthrough
 

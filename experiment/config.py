@@ -231,6 +231,19 @@ def get(
             pad_right_neurons=stim_pad_right_neurons,
             cuda=cuda
         )
+    elif stimulation_type is stim.StimulationType.passthrough:
+        assert (num_stim_neurons + stim_pad_left_neurons + stim_pad_right_neurons) == \
+                (3 * num_neurons_per_module)
+
+        stimulus = stimulation_type.value(
+            num_stim_channels,
+            num_stim_neurons,
+            batch_size=1,  # Will be reset before use
+            retain_grad=stim_retain_grad,
+            pad_left_neurons=stim_pad_left_neurons,
+            pad_right_neurons=stim_pad_right_neurons,
+            cuda=cuda
+        )
     else:
         raise ValueError(f"Unrecognized stimulation type: {stimulation_type}")
 
