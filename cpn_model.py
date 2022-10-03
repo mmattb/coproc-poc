@@ -303,6 +303,12 @@ class CPNNoiseyLSTMCollection(nn.Module):
         self.fc_w = None
         self.fc_b = None
 
+        self.grad_mask_W = None
+        self.grad_mask_U = None
+        self.grad_mask_bias = None
+        self.grad_mask_fc_w = None
+        self.grad_mask_fc_b = None
+
         self._opt = None
         self.batch_size = None
 

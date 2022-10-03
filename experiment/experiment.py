@@ -1,11 +1,10 @@
 import errno
 import logging
 import os
-import time
 
 import attr
 import torch
-from torch.optim import AdamW, SGD
+from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
 
@@ -17,7 +16,6 @@ from . import stats
 from . import michaels_load
 from . import mRNN
 from . import utils
-
 
 g_logger = logging.getLogger("experiment")
 
@@ -360,8 +358,7 @@ class Experiment:
                 )
                 batch = next(iter(self.cfg.loader_train[0]))
 
-            din, trial_end, trial_len, dout, labels = batch
-            batch_size = din.shape[0]
+            din, trial_end, _, dout, labels = batch
             steps = din.shape[1]
             self.mike.reset()
             self.opt_mike.zero_grad()

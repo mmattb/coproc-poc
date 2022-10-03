@@ -4,7 +4,6 @@ import torch
 
 from .utils import gaussian_array_weights
 
-
 class Observer(object):
     def __init__(self):
         self._out_dim = None

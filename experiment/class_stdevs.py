@@ -46,7 +46,7 @@ def calc_raw_dset_class_vars(dset):
 
     dset = rotate_dset(dset)
     stds = []
-    for label, batch in dset.items():
+    for _, batch in dset.items():
         std = batch_variance(batch)
         stds.append(std.item())
 

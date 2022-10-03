@@ -382,7 +382,7 @@ class StimulusPassthrough(Stimulus):
         return stim_out
 
     def __str__(self):
-        return f"gaussianPassthrough"
+        return "gaussianPassthrough"
 
 
 class StimulationType(enum.Enum):

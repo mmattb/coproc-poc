@@ -1,4 +1,3 @@
-import json
 import math
 
 import torch
@@ -228,8 +227,8 @@ class LSTMModel(nn.Module):
         self._opt.zero_grad()
 
     def forward(self, x_t):
-        """Old: Assumes x is of shape (batch, sequence, feature)"""
-        """New: Assumes x_t is of shape (batch, feature)"""
+        # Old: Assumes x is of shape (batch, sequence, feature)
+        # New: Assumes x_t is of shape (batch, feature)
 
         batch_size, in_dim = x_t.shape
         assert in_dim == self.in_dim, str((in_dim, self.in_dim))

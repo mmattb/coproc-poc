@@ -1,7 +1,7 @@
 import torch
 
 from cpn_utils import CPNENStats, calc_pred_loss, calc_train_loss, EpochType
-import experiment.utils as utils
+from experiment import utils
 
 
 class CPNEpochCPN:
@@ -197,10 +197,7 @@ class CPNEpochCPN:
         self.set_opt_lr(rtl, loss_history.eidx)
 
         # Every 10 epochs let's validate/test
-        if not is_validation and (loss_history.eidx % 10) == 0:
-            next_is_validation = True
-        else:
-            next_is_validation = False
+        next_is_validation = not is_validation and (loss_history.eidx % 10) == 0
 
         last_rec = loss_history.get_recent_record(-2)
         pred_val_loss_out = float("nan")

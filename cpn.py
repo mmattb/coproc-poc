@@ -200,7 +200,6 @@ class CPN_EN_CoProc(experiment.CoProc):
         # Unpack, aka form a single 'actuals', 'targets', 'trial_end',
         #  and pack a list of concatenated stims.
 
-        bdata_len = len(self.saved_data[0][4][0])
         trial_len = len(self.saved_data[0][4])
 
         is_validation = next_is_validation
@@ -213,7 +212,6 @@ class CPN_EN_CoProc(experiment.CoProc):
             self.saved_data = []
             return False
 
-        done = False
         checkpoint_eidx = 0
         en_is_ready = False
         while not en_is_ready and checkpoint_eidx < 10:

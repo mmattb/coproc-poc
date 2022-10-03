@@ -2,7 +2,7 @@ import torch
 
 import cpn_model
 from cpn_utils import CPNENStats, calc_pred_loss, EpochType
-import experiment.utils as utils
+from experiment import utils
 import stim_model
 
 
@@ -160,10 +160,7 @@ class CPNEpochEN:
             en_is_ready = False
 
         # Every 10 epochs let's validate/test
-        if not en_is_ready and not is_validation and (self.checkpoint_eidx % 10) == 0:
-            next_is_validation = True
-        else:
-            next_is_validation = False
+        next_is_validation = not en_is_ready and not is_validation and (self.checkpoint_eidx % 10) == 0
 
         user_data = CPNENStats(
             "en_offline" if reused_data else "en",

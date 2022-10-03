@@ -8,7 +8,6 @@ from torch.utils.data import Dataset
 from . import michaels_load
 from . import utils
 
-
 # Length of real-world time for a given time step, in ms
 tick = 10
 dt = 1

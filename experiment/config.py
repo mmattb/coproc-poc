@@ -13,7 +13,6 @@ from . import michaels_load
 from . import observer
 from . import stim
 
-
 LOG_FORMAT = "%(asctime)s %(message)s"
 LOG_DATEFMT = "%m-%d %H:%M:%S"
 logging.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATEFMT, level=logging.INFO)
@@ -193,7 +192,7 @@ def get(
         num_stim_neurons = num_neurons_per_module
 
     if stimulation_type is stim.StimulationType.one_to_one:
-        if pad_left_neurons != 0:
+        if stim_pad_left_neurons != 0:
             raise NotImplementedError()
 
         stimulus = stimulation_type.value(
@@ -205,7 +204,7 @@ def get(
         if cuda:
             raise NotImplementedError()
 
-        if pad_left_neurons != 0:
+        if stim_pad_left_neurons != 0:
             raise NotImplementedError()
 
         # NOTE: can add the num_stim_channels and sigma arg above
