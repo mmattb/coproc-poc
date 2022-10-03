@@ -145,9 +145,7 @@ class CPNEpochEN:
                     train_loss_out = last_user_data.train_loss
                 train_val_loss_out = last_user_data.train_val_loss
 
-        if (
-            vl != vl or vl == float("inf") or vl > 1.5
-        ):
+        if vl != vl or vl == float("inf") or vl > 1.5:
             self.en, self.opt_en = self.new_en(self.en)
             en_is_ready = False
             self.reset_period()

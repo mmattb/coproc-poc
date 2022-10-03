@@ -1,3 +1,5 @@
+# NOTE: this is an old file
+
 import logging
 
 logger = logging.getLogger("train")
@@ -117,8 +119,15 @@ def train_loop(
 
 
 def train_en(
-    mike, observer, cpn, data_loader, loss_history, en=None, opt_en=None,
-    en_num_neurons=None, cuda=None
+    mike,
+    observer,
+    cpn,
+    data_loader,
+    loss_history,
+    en=None,
+    opt_en=None,
+    en_num_neurons=None,
+    cuda=None,
 ):
     """
     mike: a Michaels modular RNN (a torch Module)
@@ -169,7 +178,6 @@ def train_en(
                 remaining_loss = 0.05
             else:
                 remaining_loss = remaining_loss.item()
-
 
             # Silly lr schedule; basically works
             for p in opt_en.param_groups:
@@ -228,7 +236,6 @@ def train_en(
                     cuda=cuda,
                 )
                 vl = loss_history.recent_pred_val_loss
-
 
             loss_history.log(logger, "training en:")
 

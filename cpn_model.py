@@ -57,7 +57,6 @@ class CPNModel(nn.Module):
 
         self._uuid = uuid.uuid1()
 
-
     @property
     def uuid(self):
         return self._uuid.hex
@@ -331,11 +330,12 @@ class CPNNoiseyLSTMCollection(nn.Module):
                 cpn.W[:, :].reshape((1,) + cpn.W.shape).repeat(batch_size, 1, 1)
             )
             stdev = torch.std(self.W[:noisey_cnt, :, :]) * self.noise_var
-            #self.W[:noisey_cnt, :, :] += self.noise_var * (
-                #torch.rand(noisey_cnt, self.W.shape[1], self.W.shape[2]) - 0.5
-            #)
-            self.W[:noisey_cnt, :, :] += torch.normal(0.0, stdev, (noisey_cnt,
-                self.W.shape[1], self.W.shape[2]))
+            # self.W[:noisey_cnt, :, :] += self.noise_var * (
+            # torch.rand(noisey_cnt, self.W.shape[1], self.W.shape[2]) - 0.5
+            # )
+            self.W[:noisey_cnt, :, :] += torch.normal(
+                0.0, stdev, (noisey_cnt, self.W.shape[1], self.W.shape[2])
+            )
             self.grad_mask_W = torch.zeros(self.W.shape).cuda(self._cuda)
             self.grad_mask_W[:noisey_cnt, :, :] = 1.0
 
@@ -346,11 +346,12 @@ class CPNNoiseyLSTMCollection(nn.Module):
                 cpn.U[:, :].reshape((1,) + cpn.U.shape).repeat(batch_size, 1, 1)
             )
             stdev = torch.std(self.U[:noisey_cnt, :, :]) * self.noise_var
-            #self.U[:noisey_cnt, :, :] += self.noise_var * (
-                #torch.rand(noisey_cnt, self.U.shape[1], self.U.shape[2]) - 0.5
-            #)
-            self.U[:noisey_cnt, :, :] += torch.normal(0.0, stdev, (noisey_cnt,
-                self.U.shape[1], self.U.shape[2]))
+            # self.U[:noisey_cnt, :, :] += self.noise_var * (
+            # torch.rand(noisey_cnt, self.U.shape[1], self.U.shape[2]) - 0.5
+            # )
+            self.U[:noisey_cnt, :, :] += torch.normal(
+                0.0, stdev, (noisey_cnt, self.U.shape[1], self.U.shape[2])
+            )
             self.grad_mask_U = torch.zeros(self.U.shape).cuda(self._cuda)
             self.grad_mask_U[:noisey_cnt, :, :] = 1.0
 
@@ -359,11 +360,12 @@ class CPNNoiseyLSTMCollection(nn.Module):
                 cpn.bias[:].reshape(1, cpn.bias.shape[0]).repeat(batch_size, 1)
             )
             stdev = torch.std(self.bias[:noisey_cnt, :]) * self.noise_var
-            #self.bias[:noisey_cnt, :] += self.noise_var * (
-                #torch.rand(noisey_cnt, self.bias.shape[1]) - 0.5
-            #)
-            self.bias[:noisey_cnt, :] += torch.normal(0.0, stdev,
-                    (noisey_cnt, self.bias.shape[1]))
+            # self.bias[:noisey_cnt, :] += self.noise_var * (
+            # torch.rand(noisey_cnt, self.bias.shape[1]) - 0.5
+            # )
+            self.bias[:noisey_cnt, :] += torch.normal(
+                0.0, stdev, (noisey_cnt, self.bias.shape[1])
+            )
             self.grad_mask_bias = torch.zeros(self.bias.shape).cuda(self._cuda)
             self.grad_mask_bias[:noisey_cnt, :] = 1.0
 
@@ -377,11 +379,12 @@ class CPNNoiseyLSTMCollection(nn.Module):
                 .repeat(batch_size, 1, 1)
             )
             stdev = torch.std(self.fc_w[:noisey_cnt, :, :]) * self.noise_var
-            #self.fc_w[:noisey_cnt, :, :] += self.noise_var * (
-                #torch.rand(noisey_cnt, self.out_dim, self.num_neurons) - 0.5
-            #)
-            self.fc_w[:noisey_cnt, :, :] += torch.normal(0.0, stdev,
-                    (noisey_cnt, self.out_dim, self.num_neurons))
+            # self.fc_w[:noisey_cnt, :, :] += self.noise_var * (
+            # torch.rand(noisey_cnt, self.out_dim, self.num_neurons) - 0.5
+            # )
+            self.fc_w[:noisey_cnt, :, :] += torch.normal(
+                0.0, stdev, (noisey_cnt, self.out_dim, self.num_neurons)
+            )
             self.grad_mask_fc_w = torch.zeros(self.fc_w.shape).cuda(self._cuda)
             self.grad_mask_fc_w[:noisey_cnt, :, :] = 1.0
 
@@ -390,11 +393,12 @@ class CPNNoiseyLSTMCollection(nn.Module):
                 cpn.fc.bias[:].reshape(1, self.out_dim).repeat(batch_size, 1)
             )
             stdev = torch.std(self.fc_b[:noisey_cnt, :]) * self.noise_var
-            #self.fc_b[:noisey_cnt, :] += self.noise_var * (
+            # self.fc_b[:noisey_cnt, :] += self.noise_var * (
             #    torch.rand(noisey_cnt, self.out_dim) - 0.5
-            #)
-            self.fc_b[:noisey_cnt, :] += torch.normal(0.0, stdev,
-                    (noisey_cnt, self.out_dim))
+            # )
+            self.fc_b[:noisey_cnt, :] += torch.normal(
+                0.0, stdev, (noisey_cnt, self.out_dim)
+            )
             self.grad_mask_fc_b = torch.zeros(self.fc_b.shape).cuda(self._cuda)
             self.grad_mask_fc_b[:noisey_cnt, :] = 1.0
 
@@ -406,11 +410,11 @@ class CPNNoiseyLSTMCollection(nn.Module):
         #  training".
         self._opt = torch.optim.SGD(self.parameters(), lr=1e-5)
 
-    #def step(self, only_noisey=True):
+    # def step(self, only_noisey=True):
     #    if only_noisey:
     #        noisey_cnt = int(self.W.shape[0] * self.noisey_pct)
 
-    #        # W 
+    #        # W
     #        grad_mean = torch.mean(self.W.grad[:noisey_cnt, :, :])
     #        grad_stdev = torch.std(self.W.grad[:noisey_cnt, :, :])
     #        self.W.grad[:noisey_cnt, :, :] += torch.normal(grad_mean,
@@ -418,7 +422,7 @@ class CPNNoiseyLSTMCollection(nn.Module):
     #                ).cuda(self._cuda)
     #        self.W.grad *= self.grad_mask_W
 
-    #        # U 
+    #        # U
     #        grad_mean = torch.mean(self.U.grad[:noisey_cnt, :, :])
     #        grad_stdev = torch.std(self.U.grad[:noisey_cnt, :, :])
     #        self.U.grad[:noisey_cnt, :, :] += torch.normal(grad_mean,

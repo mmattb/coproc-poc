@@ -41,10 +41,9 @@ class Config:
     holdout_pct: float
 
     def shuffle_dataset(self):
-        _, self.loader_train[0], self.loader_test[0] = \
-                get_dataset(holdout_pct=self.holdout_pct,
-                            dataset=self.dataset,
-                            cuda=self.cuda)
+        _, self.loader_train[0], self.loader_test[0] = get_dataset(
+            holdout_pct=self.holdout_pct, dataset=self.dataset, cuda=self.cuda
+        )
 
     def unpack(self):
         return (
@@ -217,8 +216,9 @@ def get(
             sigma=stim_sigma,
         )
     elif stimulation_type is stim.StimulationType.gaussian_exp:
-        assert (num_stim_neurons + stim_pad_left_neurons + stim_pad_right_neurons) == \
-                (3 * num_neurons_per_module)
+        assert (num_stim_neurons + stim_pad_left_neurons + stim_pad_right_neurons) == (
+            3 * num_neurons_per_module
+        )
 
         stimulus = stimulation_type.value(
             num_stim_channels,
@@ -229,11 +229,12 @@ def get(
             retain_grad=stim_retain_grad,
             pad_left_neurons=stim_pad_left_neurons,
             pad_right_neurons=stim_pad_right_neurons,
-            cuda=cuda
+            cuda=cuda,
         )
     elif stimulation_type is stim.StimulationType.passthrough:
-        assert (num_stim_neurons + stim_pad_left_neurons + stim_pad_right_neurons) == \
-                (3 * num_neurons_per_module)
+        assert (num_stim_neurons + stim_pad_left_neurons + stim_pad_right_neurons) == (
+            3 * num_neurons_per_module
+        )
 
         stimulus = stimulation_type.value(
             num_stim_channels,
@@ -242,7 +243,7 @@ def get(
             retain_grad=stim_retain_grad,
             pad_left_neurons=stim_pad_left_neurons,
             pad_right_neurons=stim_pad_right_neurons,
-            cuda=cuda
+            cuda=cuda,
         )
     else:
         raise ValueError(f"Unrecognized stimulation type: {stimulation_type}")
@@ -295,9 +296,7 @@ def get(
         cfg_toks_short.append("coadapt")
     cfg_str_short = "_".join(cfg_toks_short)
 
-    dataset, loader_train, loader_test = get_dataset(
-        holdout_pct=holdout_pct, cuda=cuda
-    )
+    dataset, loader_train, loader_test = get_dataset(holdout_pct=holdout_pct, cuda=cuda)
 
     cfg_out = Config(
         observer_instance,
@@ -309,8 +308,12 @@ def get(
         cfg_str_short,
         out_dim,
         dataset,
-        [loader_train,],
-        [loader_test,],
+        [
+            loader_train,
+        ],
+        [
+            loader_test,
+        ],
         recover_after_lesion,
         coadapt,
         dont_train,

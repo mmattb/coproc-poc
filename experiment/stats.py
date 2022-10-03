@@ -100,7 +100,7 @@ class LossHistory:
             "task_loss": render_none_or_float(rec.task_loss),
             "task_loss_hand": render_none_or_float(rec.task_loss_hand),
             "task_val_loss": render_none_or_float(rec.task_val_loss),
-			"pct_recov": render_none_or_float(rec.pct_recov, fmt="%0.3f"),
+            "pct_recov": render_none_or_float(rec.pct_recov, fmt="%0.3f"),
             "pct_recov_hand": render_none_or_float(rec.pct_recov_hand, fmt="%0.3f"),
             "class_separation": render_none_or_float(rec.class_separation, fmt="%0.3f"),
         }
@@ -186,14 +186,21 @@ class LossHistory:
         if update_task_loss:
             class_separation = self.calc_class_separation(actuals, labels)
             task_loss = calc_task_loss(actuals, dout)
-            task_loss_hand = calc_task_loss(actuals[:, :, HAND_MUSCLE_START_IDX:],
-                                            dout[:, :, HAND_MUSCLE_START_IDX:])
+            task_loss_hand = calc_task_loss(
+                actuals[:, :, HAND_MUSCLE_START_IDX:],
+                dout[:, :, HAND_MUSCLE_START_IDX:],
+            )
         else:
             class_separation = None
             task_loss = None
             task_loss_hand = None
 
-        self.report(task_loss, task_loss_hand, class_separation=class_separation, user_data=user_data)
+        self.report(
+            task_loss,
+            task_loss_hand,
+            class_separation=class_separation,
+            user_data=user_data,
+        )
 
     def report_val_last_result(
         self, actuals, dout, update_task_loss=True, user_data=None

@@ -210,10 +210,14 @@ class MichaelsRNN(nn.Module):
         self.I_zero_grad_mask = I_zero_grad_mask
 
         # The hold signal response can change, but not input response
-        self.I_connection_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_input_features)
+        self.I_connection_coadap_zero_grad_mask = torch.zeros(
+            self.num_neurons, self.num_input_features
+        )
 
         # Only M1 internal mappings
-        self.J_connection_coadap_zero_grad_mask = torch.zeros(self.num_neurons, self.num_neurons)
+        self.J_connection_coadap_zero_grad_mask = torch.zeros(
+            self.num_neurons, self.num_neurons
+        )
         self.J_connection_coadap_zero_grad_mask[:npm, :npm] = 1.0
 
         # Only M1
@@ -227,14 +231,18 @@ class MichaelsRNN(nn.Module):
         if self._cuda is not None:
             self.J_zero_grad_mask = self.J_zero_grad_mask.cuda(self._cuda)
             self.I_zero_grad_mask = self.I_zero_grad_mask.cuda(self._cuda)
-            self.I_connection_coadap_zero_grad_mask = \
-                    self.I_connection_coadap_zero_grad_mask.cuda(self._cuda)
-            self.J_connection_coadap_zero_grad_mask = \
-                    self.J_connection_coadap_zero_grad_mask.cuda(self._cuda)
-            self.S_connection_coadap_zero_grad_mask = \
-                    self.S_connection_coadap_zero_grad_mask.cuda(self._cuda)
-            self.B_connection_coadap_zero_grad_mask = \
-                    self.B_connection_coadap_zero_grad_mask.cuda(self._cuda)
+            self.I_connection_coadap_zero_grad_mask = (
+                self.I_connection_coadap_zero_grad_mask.cuda(self._cuda)
+            )
+            self.J_connection_coadap_zero_grad_mask = (
+                self.J_connection_coadap_zero_grad_mask.cuda(self._cuda)
+            )
+            self.S_connection_coadap_zero_grad_mask = (
+                self.S_connection_coadap_zero_grad_mask.cuda(self._cuda)
+            )
+            self.B_connection_coadap_zero_grad_mask = (
+                self.B_connection_coadap_zero_grad_mask.cuda(self._cuda)
+            )
 
     def load_weights_from_file(self, data_path):
         self.load_state_dict(torch.load(data_path))
@@ -493,5 +501,3 @@ def load_from_file(data_path, pretrained=False, **kwargs):
             param.requires_grad = False
 
     return mrnn
-
-

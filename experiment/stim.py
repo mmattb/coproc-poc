@@ -9,8 +9,12 @@ from . import utils
 
 class Stimulus(object):
     def __init__(
-        self, num_stim_channels, num_neurons, pad_left_neurons=0,
-        pad_right_neurons=200, batch_size=1
+        self,
+        num_stim_channels,
+        num_neurons,
+        pad_left_neurons=0,
+        pad_right_neurons=200,
+        batch_size=1,
     ):
         self._num_stim_channels = num_stim_channels
         self._num_neurons = num_neurons
@@ -192,13 +196,18 @@ class StimulusGaussianExp(Stimulus):
         cuda=None,
     ):
         super(StimulusGaussianExp, self).__init__(
-            num_stim_channels, num_neurons, pad_left_neurons, pad_right_neurons,
-            batch_size=batch_size
+            num_stim_channels,
+            num_neurons,
+            pad_left_neurons,
+            pad_right_neurons,
+            batch_size=batch_size,
         )
 
         self._sigma = sigma
-        self._vals = torch.zeros((batch_size, pad_left_neurons + num_neurons +
-            pad_right_neurons), requires_grad=retain_grad)
+        self._vals = torch.zeros(
+            (batch_size, pad_left_neurons + num_neurons + pad_right_neurons),
+            requires_grad=retain_grad,
+        )
         self._decay = decay
         self._norm = norm(0, self._sigma)
         self._retain_grad = retain_grad
@@ -226,7 +235,7 @@ class StimulusGaussianExp(Stimulus):
                     self._norm.pdf,
                     normalize=True,
                 ),
-                requires_grad=self._retain_grad
+                requires_grad=self._retain_grad,
             )
             .float()
             .T
@@ -247,8 +256,11 @@ class StimulusGaussianExp(Stimulus):
     def reset(self, batch_size=None):
         super(StimulusGaussianExp, self).reset(batch_size=batch_size)
         self._vals = torch.zeros(
-            (self.batch_size, self.pad_left_neurons + self.num_neurons +
-                self.pad_right_neurons), requires_grad=self._retain_grad
+            (
+                self.batch_size,
+                self.pad_left_neurons + self.num_neurons + self.pad_right_neurons,
+            ),
+            requires_grad=self._retain_grad,
         )
 
         if self._retain_grad:
@@ -296,6 +308,7 @@ class StimulusGaussianExp(Stimulus):
     def __str__(self):
         return f"gaussianExp{self.out_dim}.sig{self._sigma}.decay{self._decay}"
 
+
 class StimulusPassthrough(Stimulus):
     def __init__(
         self,
@@ -308,12 +321,15 @@ class StimulusPassthrough(Stimulus):
         cuda=None,
     ):
         assert num_stim_channels == num_neurons, (
-                "Passthrough stim requires num_stim_channels "
-                "== num_neurons")
+            "Passthrough stim requires num_stim_channels " "== num_neurons"
+        )
 
         super(StimulusPassthrough, self).__init__(
-            num_stim_channels, num_neurons, pad_left_neurons, pad_right_neurons,
-            batch_size=batch_size
+            num_stim_channels,
+            num_neurons,
+            pad_left_neurons,
+            pad_right_neurons,
+            batch_size=batch_size,
         )
 
         self._retain_grad = retain_grad
@@ -329,9 +345,11 @@ class StimulusPassthrough(Stimulus):
     def reset(self, batch_size=None):
         super(StimulusPassthrough, self).reset(batch_size=batch_size)
 
-        self._next_stim = torch.zeros(self._batch_size,
-                self.pad_left_neurons + self.num_neurons + self.pad_right_neurons,
-                device=self._cuda)
+        self._next_stim = torch.zeros(
+            self._batch_size,
+            self.pad_left_neurons + self.num_neurons + self.pad_right_neurons,
+            device=self._cuda,
+        )
 
         if self._retain_grad:
             self._next_stim.retain_grad()
@@ -366,9 +384,9 @@ class StimulusPassthrough(Stimulus):
     def __str__(self):
         return f"gaussianPassthrough"
 
+
 class StimulationType(enum.Enum):
     one_to_one = Stimulus1to1
     gaussian_alpha = StimulusGaussian
     gaussian_exp = StimulusGaussianExp
     passthrough = StimulusPassthrough
-

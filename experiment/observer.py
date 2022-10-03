@@ -65,8 +65,9 @@ class ObserverGaussian1d(Observer):
 
 class ObserverGaussian1dDrifting(ObserverGaussian1d):
     def __init__(self, in_dim, out_dim=20, sigma=1.75, drift_std=0.0005, cuda=None):
-        super(ObserverGaussian1dDrifting, self).__init__(in_dim=in_dim,
-                out_dim=out_dim, sigma=sigma, cuda=cuda)
+        super(ObserverGaussian1dDrifting, self).__init__(
+            in_dim=in_dim, out_dim=out_dim, sigma=sigma, cuda=cuda
+        )
 
         self.drift_std = drift_std
 
@@ -107,8 +108,8 @@ class ObserverPassthrough(Observer):
     def __str__(self):
         return "passthrough"
 
+
 class ObserverType(enum.Enum):
     gaussian = ObserverGaussian1d
     drifting_gaussian = ObserverGaussian1dDrifting
     passthrough = ObserverPassthrough
-

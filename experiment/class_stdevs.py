@@ -66,7 +66,7 @@ def calc_class_vars(actuals, labels):
         if label not in collected:
             collected[label] = []
 
-        collected[label].append(actuals[idx:idx+1, :, :])
+        collected[label].append(actuals[idx : idx + 1, :, :])
 
     collated = collate_data(collected)
 

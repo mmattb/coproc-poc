@@ -71,6 +71,7 @@ class LesionOutputsByIdxs(Lesion):
     def __str__(self):
         return f"outputsIdxs{self.start_idx}.{self.end_idx}"
 
+
 class LesionOutputsByMask(Lesion):
     def __init__(self, num_neurons_per_module, lesion_mask, cuda=None):
         assert lesion_mask.shape == (num_neurons_per_module * 3,)

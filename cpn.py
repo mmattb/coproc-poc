@@ -41,7 +41,7 @@ class CPN_EN_CoProc(experiment.CoProc):
             print("Log dir will be:", self.log_dir)
         else:
             self.log_dir = None
-        
+
         self.cpn = cpn_model.CPNModelLSTM(
             in_dim,
             stim_dim,
@@ -58,15 +58,17 @@ class CPN_EN_CoProc(experiment.CoProc):
         # We are not training the coproc, but the obs function has drifting bias.
         # Load current bias into the obs instance.
         if cfg.dont_train and cfg.drifting_obs:
-            assert isinstance(cfg.observer_instance, observer.ObserverGaussian1dDrifting)
+            assert isinstance(
+                cfg.observer_instance, observer.ObserverGaussian1dDrifting
+            )
             assert log_dir is not None
             obs_path = os.path.join(log_dir, MODEL_FILENAME_OBS)
             print("obs_path:", obs_path)
             obs_state = torch.load(obs_path)
 
-            obs_bias = obs_state['bias'].cuda(cuda)
-            obs_means = obs_state['means'].cuda(cuda)
-            obs_stdevs = obs_state['stdevs'].cuda(cuda)
+            obs_bias = obs_state["bias"].cuda(cuda)
+            obs_means = obs_state["means"].cuda(cuda)
+            obs_stdevs = obs_state["stdevs"].cuda(cuda)
 
             cfg.observer_instance.bias = obs_bias
             cfg.observer_instance.means = obs_means
@@ -75,8 +77,7 @@ class CPN_EN_CoProc(experiment.CoProc):
 
         en_in_dim = cfg.observer_instance.out_dim + stim_dim + 1
         self.en, self.opt_en = stim_model.get_stim_model(
-            en_in_dim, out_dim, activation=cfg.en_activation,
-            cuda=cfg.cuda
+            en_in_dim, out_dim, activation=cfg.en_activation, cuda=cfg.cuda
         )
 
         self.stims = None
@@ -103,7 +104,11 @@ class CPN_EN_CoProc(experiment.CoProc):
             cpn_model_path = None
 
         self.cpn_epoch = cpn_epoch_cpn.CPNEpochCPN(
-            self.en, self.opt_en, self.cpn, self.opt_cpn, self.cfg,
+            self.en,
+            self.opt_en,
+            self.cpn,
+            self.opt_cpn,
+            self.cfg,
             model_path=cpn_model_path,
         )
 
@@ -137,7 +142,7 @@ class CPN_EN_CoProc(experiment.CoProc):
             for param in self.cpn.parameters():
                 param.requires_grad = False
             for param in self.en.parameters():
-                param.requires_grad = False 
+                param.requires_grad = False
         else:
             for param in self.cpn.parameters():
                 param.requires_grad = False
@@ -207,7 +212,6 @@ class CPN_EN_CoProc(experiment.CoProc):
         if last_pred_loss > 0.005:
             self.saved_data = []
             return False
-
 
         done = False
         checkpoint_eidx = 0
@@ -293,8 +297,9 @@ class CPN_EN_CoProc(experiment.CoProc):
                 self.epoch_type = EpochType.EN
 
             if len(self.saved_data) == self.recycle_thresh and not en_is_ready:
-                en_is_ready = self.train_en_closed_loop(loss_history, user_data,
-                    next_is_validation)
+                en_is_ready = self.train_en_closed_loop(
+                    loss_history, user_data, next_is_validation
+                )
 
                 if en_is_ready:
                     self.epoch_type = EpochType.CPN
@@ -358,7 +363,9 @@ class CPN_EN_CoProc(experiment.CoProc):
                 torch.save(self.en.state_dict(), en_path)
                 torch.save(mike.state_dict(), mike_path)
 
-                if isinstance(self.cfg.observer_instance, observer.ObserverGaussian1dDrifting):
+                if isinstance(
+                    self.cfg.observer_instance, observer.ObserverGaussian1dDrifting
+                ):
                     out = {
                         "bias": self.cfg.observer_instance.bias.cpu(),
                         "means": self.cfg.observer_instance.means.cpu(),

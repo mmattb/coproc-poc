@@ -59,6 +59,7 @@ def get_m1_lesion_config(cuda=None, coadapt=True, **kwargs):
         **kwargs,
     )
 
+
 def get_aip_lesion_config(cuda=None, coadapt=True, **kwargs):
     lesion_type = lesion.LesionType.outputs
     # Lesion the neurons with idxs 200-250, which are in AIP
@@ -74,9 +75,15 @@ def get_aip_lesion_config(cuda=None, coadapt=True, **kwargs):
     )
 
 
-def get_config(recover_after_lesion=False, coadapt=False, dont_train=False,
-        num_stim_neurons=None, stim_pad_right_neurons=config.DEFAULT_STIM_PAD_RIGHT_NEURONS,
-        cuda=None, **kwargs):
+def get_config(
+    recover_after_lesion=False,
+    coadapt=False,
+    dont_train=False,
+    num_stim_neurons=None,
+    stim_pad_right_neurons=config.DEFAULT_STIM_PAD_RIGHT_NEURONS,
+    cuda=None,
+    **kwargs,
+):
     """
     Args:
         - cuda (str, torch.device, or None): None for CPU, or a string like "0" specifying a GPU
@@ -188,16 +195,19 @@ class Experiment:
         self.mike = mike
 
         if cfg.recover_after_lesion:
-            model_path = os.path.join(RECOV_MODEL_PATH, "recovered_mrnn_%s.model" %
-                str(cfg.lesion_instance))
+            model_path = os.path.join(
+                RECOV_MODEL_PATH, "recovered_mrnn_%s.model" % str(cfg.lesion_instance)
+            )
 
             try:
                 self.mike.load_weights_from_file(model_path)
             except OSError as e:
                 if e.errno == errno.ENOENT:
-                    raise ValueError("No pre-generated recovered mRNN available "
-                        "for a lesion of type %s; looked for path %s" % (
-                        str(cfg.lesion_instance), model_path))
+                    raise ValueError(
+                        "No pre-generated recovered mRNN available "
+                        "for a lesion of type %s; looked for path %s"
+                        % (str(cfg.lesion_instance), model_path)
+                    )
                 raise
 
         elif mike_load_path is not None:
@@ -266,8 +276,10 @@ class Experiment:
                 comp_preds_healthy[:, tidx, :] = p[:, :]
             comp_preds_healthy = utils.trunc_to_trial_end(comp_preds_healthy, trial_end)
             comp_loss_healthy = comp_loss(comp_preds_healthy, dout)
-            comp_loss_healthy_hand = comp_loss(comp_preds_healthy[:, :, utils.HAND_MUSCLE_START_IDX:],
-                    dout[:, :, utils.HAND_MUSCLE_START_IDX:])
+            comp_loss_healthy_hand = comp_loss(
+                comp_preds_healthy[:, :, utils.HAND_MUSCLE_START_IDX :],
+                dout[:, :, utils.HAND_MUSCLE_START_IDX :],
+            )
 
         finally:
             self.mike.set_lesion(self.cfg.lesion_instance)
@@ -285,13 +297,21 @@ class Experiment:
             comp_preds_lesioned[:, tidx, :] = p[:, :]
         comp_preds_lesioned = utils.trunc_to_trial_end(comp_preds_lesioned, trial_end)
         comp_loss_lesioned = comp_loss(comp_preds_lesioned, dout)
-        comp_loss_lesioned_hand = comp_loss(comp_preds_lesioned[:, :, utils.HAND_MUSCLE_START_IDX:],
-                dout[:, :, utils.HAND_MUSCLE_START_IDX:])
+        comp_loss_lesioned_hand = comp_loss(
+            comp_preds_lesioned[:, :, utils.HAND_MUSCLE_START_IDX :],
+            dout[:, :, utils.HAND_MUSCLE_START_IDX :],
+        )
 
         self.mike.reset()
 
-        return comp_loss_healthy, comp_loss_healthy_hand, comp_loss_lesioned, \
-                comp_loss_lesioned_hand, var_whole, var_within
+        return (
+            comp_loss_healthy,
+            comp_loss_healthy_hand,
+            comp_loss_lesioned,
+            comp_loss_lesioned_hand,
+            var_whole,
+            var_within,
+        )
 
     @property
     def coproc(self):
@@ -329,8 +349,8 @@ class Experiment:
             if is_validation:
 
                 assert (
-                    len(self.cfg.loader_test[0].dataset) ==
-                        self.cfg.loader_test[0].batch_size
+                    len(self.cfg.loader_test[0].dataset)
+                    == self.cfg.loader_test[0].batch_size
                 )
                 batch = next(iter(self.cfg.loader_test[0]))
             else:
@@ -393,7 +413,9 @@ class Experiment:
             result = self._coproc_finish(self.loss_history)
             should_stop, next_is_validation, user_data = result.unpack()
 
-            if self.cfg.coadapt and ((self.loss_history.eidx % 5) == 0 or self.cfg.dont_train):
+            if self.cfg.coadapt and (
+                (self.loss_history.eidx % 5) == 0 or self.cfg.dont_train
+            ):
                 loss = torch.nn.MSELoss()(actuals, dout[:, 1:, :])
                 loss.backward(inputs=list(self.mike.parameters()))
                 if self.cfg.lesion_instance.application == "connection":
@@ -421,6 +443,6 @@ class Experiment:
 
             is_validation = next_is_validation
 
-            #self.cfg.shuffle_dataset()
+            # self.cfg.shuffle_dataset()
 
         return self.loss_history
