@@ -154,6 +154,9 @@ class CPNNoiseyCollection(nn.Module):
 
         self._opt.zero_grad()
 
+    def step(self):
+        self._opt.step()
+
     def setup(self, batch_size):
         with torch.no_grad():
             noisey_cnt = int(batch_size * self.noisey_pct)
@@ -270,7 +273,7 @@ class CPNNoiseyLSTMCollection(nn.Module):
         cpn,
         activation_func=torch.nn.Tanh,
         noisey_pct=0.90,
-        noise_var=0.3,
+        noise_var=0.7,
         white_noise_pct=0.3,
         white_noise_var=2,
         cuda=None,
@@ -302,6 +305,7 @@ class CPNNoiseyLSTMCollection(nn.Module):
         self.fc_b = None
 
         self._opt = None
+        self.batch_size = None
 
     def reset(self):
         self.ht = None
@@ -317,6 +321,7 @@ class CPNNoiseyLSTMCollection(nn.Module):
         """
         with torch.no_grad():
             noisey_cnt = int(batch_size * self.noisey_pct)
+            self.batch_size = batch_size
             cpn = self.cpn
 
             self.W = nn.Parameter(
@@ -325,9 +330,14 @@ class CPNNoiseyLSTMCollection(nn.Module):
             self.W[:, :, :] = (
                 cpn.W[:, :].reshape((1,) + cpn.W.shape).repeat(batch_size, 1, 1)
             )
-            self.W[:noisey_cnt, :, :] += self.noise_var * (
-                torch.rand(noisey_cnt, self.W.shape[1], self.W.shape[2]) - 0.5
-            )
+            stdev = torch.std(self.W[:noisey_cnt, :, :]) * self.noise_var
+            #self.W[:noisey_cnt, :, :] += self.noise_var * (
+                #torch.rand(noisey_cnt, self.W.shape[1], self.W.shape[2]) - 0.5
+            #)
+            self.W[:noisey_cnt, :, :] += torch.normal(0.0, stdev, (noisey_cnt,
+                self.W.shape[1], self.W.shape[2]))
+            self.grad_mask_W = torch.zeros(self.W.shape).cuda(self._cuda)
+            self.grad_mask_W[:noisey_cnt, :, :] = 1.0
 
             self.U = nn.Parameter(
                 torch.Tensor(batch_size, self.num_neurons, self.num_neurons * 4)
@@ -335,17 +345,27 @@ class CPNNoiseyLSTMCollection(nn.Module):
             self.U[:, :, :] = (
                 cpn.U[:, :].reshape((1,) + cpn.U.shape).repeat(batch_size, 1, 1)
             )
-            self.U[:noisey_cnt, :, :] += self.noise_var * (
-                torch.rand(noisey_cnt, self.U.shape[1], self.U.shape[2]) - 0.5
-            )
+            stdev = torch.std(self.U[:noisey_cnt, :, :]) * self.noise_var
+            #self.U[:noisey_cnt, :, :] += self.noise_var * (
+                #torch.rand(noisey_cnt, self.U.shape[1], self.U.shape[2]) - 0.5
+            #)
+            self.U[:noisey_cnt, :, :] += torch.normal(0.0, stdev, (noisey_cnt,
+                self.U.shape[1], self.U.shape[2]))
+            self.grad_mask_U = torch.zeros(self.U.shape).cuda(self._cuda)
+            self.grad_mask_U[:noisey_cnt, :, :] = 1.0
 
             self.bias = nn.Parameter(torch.Tensor(batch_size, self.num_neurons * 4))
             self.bias[:, :] = (
                 cpn.bias[:].reshape(1, cpn.bias.shape[0]).repeat(batch_size, 1)
             )
-            self.bias[:noisey_cnt, :] += self.noise_var * (
-                torch.rand(noisey_cnt, self.bias.shape[1]) - 0.5
-            )
+            stdev = torch.std(self.bias[:noisey_cnt, :]) * self.noise_var
+            #self.bias[:noisey_cnt, :] += self.noise_var * (
+                #torch.rand(noisey_cnt, self.bias.shape[1]) - 0.5
+            #)
+            self.bias[:noisey_cnt, :] += torch.normal(0.0, stdev,
+                    (noisey_cnt, self.bias.shape[1]))
+            self.grad_mask_bias = torch.zeros(self.bias.shape).cuda(self._cuda)
+            self.grad_mask_bias[:noisey_cnt, :] = 1.0
 
             # This one is harder... Need to re-implement fc...
             self.fc_w = nn.Parameter(
@@ -356,23 +376,81 @@ class CPNNoiseyLSTMCollection(nn.Module):
                 .reshape(1, self.out_dim, self.num_neurons)
                 .repeat(batch_size, 1, 1)
             )
-            self.fc_w[:noisey_cnt, :, :] += self.noise_var * (
-                torch.rand(noisey_cnt, self.out_dim, self.num_neurons) - 0.5
-            )
+            stdev = torch.std(self.fc_w[:noisey_cnt, :, :]) * self.noise_var
+            #self.fc_w[:noisey_cnt, :, :] += self.noise_var * (
+                #torch.rand(noisey_cnt, self.out_dim, self.num_neurons) - 0.5
+            #)
+            self.fc_w[:noisey_cnt, :, :] += torch.normal(0.0, stdev,
+                    (noisey_cnt, self.out_dim, self.num_neurons))
+            self.grad_mask_fc_w = torch.zeros(self.fc_w.shape).cuda(self._cuda)
+            self.grad_mask_fc_w[:noisey_cnt, :, :] = 1.0
 
             self.fc_b = nn.Parameter(torch.empty(batch_size, self.out_dim))
             self.fc_b[:, :] = (
                 cpn.fc.bias[:].reshape(1, self.out_dim).repeat(batch_size, 1)
             )
-            self.fc_b[:noisey_cnt, :] += self.noise_var * (
-                torch.rand(noisey_cnt, self.out_dim) - 0.5
-            )
+            stdev = torch.std(self.fc_b[:noisey_cnt, :]) * self.noise_var
+            #self.fc_b[:noisey_cnt, :] += self.noise_var * (
+            #    torch.rand(noisey_cnt, self.out_dim) - 0.5
+            #)
+            self.fc_b[:noisey_cnt, :] += torch.normal(0.0, stdev,
+                    (noisey_cnt, self.out_dim))
+            self.grad_mask_fc_b = torch.zeros(self.fc_b.shape).cuda(self._cuda)
+            self.grad_mask_fc_b[:noisey_cnt, :] = 1.0
 
-        # Used purely for dropping gradients on the ground.
+        # Used for dropping gradients on the ground.
         #  We do this to reset between learning epochs where
         #  the optimizer/thing we are learning isn't this
         #  network, but we are using this network.
-        self._opt = torch.optim.SGD(self.parameters(), lr=1e-3)
+        # Also: we use this for our "wiggle the gradients during EN
+        #  training".
+        self._opt = torch.optim.SGD(self.parameters(), lr=1e-5)
+
+    #def step(self, only_noisey=True):
+    #    if only_noisey:
+    #        noisey_cnt = int(self.W.shape[0] * self.noisey_pct)
+
+    #        # W 
+    #        grad_mean = torch.mean(self.W.grad[:noisey_cnt, :, :])
+    #        grad_stdev = torch.std(self.W.grad[:noisey_cnt, :, :])
+    #        self.W.grad[:noisey_cnt, :, :] += torch.normal(grad_mean,
+    #                grad_stdev, (noisey_cnt, self.W.shape[1], self.W.shape[2])
+    #                ).cuda(self._cuda)
+    #        self.W.grad *= self.grad_mask_W
+
+    #        # U 
+    #        grad_mean = torch.mean(self.U.grad[:noisey_cnt, :, :])
+    #        grad_stdev = torch.std(self.U.grad[:noisey_cnt, :, :])
+    #        self.U.grad[:noisey_cnt, :, :] += torch.normal(grad_mean,
+    #                grad_stdev, (noisey_cnt, self.U.shape[1], self.U.shape[2])
+    #                ).cuda(self._cuda)
+    #        self.U.grad *= self.grad_mask_U
+
+    #        # bias
+    #        grad_mean = torch.mean(self.bias.grad[:noisey_cnt, :])
+    #        grad_stdev = torch.std(self.bias.grad[:noisey_cnt, :])
+    #        self.bias.grad[:noisey_cnt, :] += torch.normal(grad_mean,
+    #                grad_stdev, (noisey_cnt, self.bias.shape[1])
+    #                ).cuda(self._cuda)
+    #        self.bias.grad *= self.grad_mask_bias
+
+    #        # fc_w
+    #        grad_mean = torch.mean(self.fc_w.grad[:noisey_cnt, :, :])
+    #        grad_stdev = torch.std(self.fc_w.grad[:noisey_cnt, :, :])
+    #        self.fc_w.grad[:noisey_cnt, :, :] += torch.normal(grad_mean,
+    #                grad_stdev, (noisey_cnt, self.out_dim, self.num_neurons)
+    #                ).cuda(self._cuda)
+    #        self.fc_w.grad *= self.grad_mask_fc_w
+
+    #        # fc_b
+    #        grad_mean = torch.mean(self.fc_b.grad[:noisey_cnt, :])
+    #        grad_stdev = torch.std(self.fc_b.grad[:noisey_cnt, :])
+    #        self.fc_b.grad[:noisey_cnt, :] += torch.normal(grad_mean,
+    #                grad_stdev, (noisey_cnt, self.out_dim)
+    #                ).cuda(self._cuda)
+    #        self.fc_b.grad *= self.grad_mask_fc_b
+
+    #    self._opt.step()
 
     def forward(self, x_t):
         """Assumes x_t is of shape (batch, feature)"""

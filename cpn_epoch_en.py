@@ -43,7 +43,9 @@ class CPNEpochEN:
     def reset_models(self):
         self.en.reset()
         self.cpn.reset()
+
         self.cpn_noise = None
+
         self.opt_en.zero_grad()
         self.opt_cpn.zero_grad()
 
@@ -64,10 +66,10 @@ class CPNEpochEN:
         return en, opt_en
 
     def ensure_noisey_cpn(self, batch_size):
-        if self.cpn_noise is None:
+        if self.cpn_noise is None or self.cpn_noise.batch_size != batch_size:
             self.cpn_noise = cpn_model.CPNNoiseyLSTMCollection(
                 self.cpn,
-                noise_var=2 * self.recent_train_loss,
+                noise_var=1.0 * self.recent_train_loss,
                 white_noise_pct=0.3,
                 white_noise_var=6,
                 cuda=self.cfg.cuda,
@@ -115,7 +117,10 @@ class CPNEpochEN:
             self.recent_pred_val_loss = pred_loss.item()
         else:
             self.recent_pred_loss = pred_loss.item()
-            pred_loss.backward(inputs=list(self.en.parameters()))
+
+            back_params = list(self.en.parameters())
+            pred_loss.backward(inputs=back_params)
+
             self.opt_en.step()
 
     def finish(self, loss_history, is_validation, reused_data=False):

@@ -211,6 +211,7 @@ class CPNEpochCPN:
 
         rtl = loss_history.recent_task_loss
         self.recent_task_losses.append(rtl)
+        #if (loss_history.max_pct_recov > 0.99 and not self.cfg.dont_train and
         if (loss_history.max_pct_recov > 0.9 and not self.cfg.dont_train and
                 loss_history.lesioned_loss > loss_history.healthy_loss):
             # The pct recov makes sense only in the typical case that lesions cause
@@ -231,6 +232,7 @@ class CPNEpochCPN:
             elif self.recent_pred_loss > max(rtl / 10, 6e-4):
                 en_is_ready = False
                 self.reset_period()
+            #elif self.checkpoint_eidx >= 200:
             elif self.checkpoint_eidx >= 100:
                 en_is_ready = False
                 self.reset_period()
