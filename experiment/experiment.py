@@ -73,6 +73,32 @@ def get_aip_lesion_config(cuda=None, coadapt=True, **kwargs):
     )
 
 
+def get_aip_f5_con_lesion_config(cuda=None, coadapt=True, **kwargs):
+    lesion_type = lesion.LesionType.connection
+    lesion_args = (
+        [
+            # No F5->AIP
+            (1, 2, 2, 3),
+            # No AIP->F5
+            (2, 3, 1, 2),
+            # For good measure: no AIP->M1
+            (2, 3, 0, 1),
+            # For good measure: no M1->AIP
+            (0, 1, 2, 3),
+        ],
+    )
+    return get_config(
+        cuda=cuda,
+        coadapt=coadapt,
+        drop_f5=True,
+        lesion_type=lesion_type,
+        lesion_args=lesion_args,
+        stim_pad_left_neurons=100,
+        stim_pad_right_neurons=100,
+        **kwargs,
+    )
+
+
 def get_config(
     recover_after_lesion=False,
     coadapt=False,
@@ -114,7 +140,7 @@ def get_config(
 
 def get_raw_data(cuda=None, **kwargs):
     # Just a passthrough, since 'experiment' is our simple interface
-    return config.get_data_raw(cuda=cuda ** kwargs)
+    return config.get_data_raw(cuda=cuda**kwargs)
 
 
 class CoProc:
@@ -239,8 +265,16 @@ class Experiment:
             self.var_within_healthy,
         )
 
+        assert not (cfg.drop_m1 and cfg.drop_f5), (
+            "Can drop observations from "
+            "only one module. File a feature request if you need more."
+        )
+
         if cfg.drop_m1:
             self.obs_drop_module_idx = 0
+        elif cfg.drop_f5:
+            print("Dropping F5")
+            self.obs_drop_module_idx = 1
         else:
             self.obs_drop_module_idx = None
 

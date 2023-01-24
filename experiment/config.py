@@ -36,6 +36,7 @@ class Config:
     dont_train: bool
     drifting_obs: bool
     drop_m1: bool
+    drop_f5: bool
     cuda: typing.Any
     holdout_pct: float
 
@@ -60,10 +61,12 @@ class Config:
     def in_dim(self):
         # 3x due to 3 modules in the mRNN
         # +1 for trial_end
+        obs_mod_in = 3
         if self.drop_m1:
-            obs_mod_in = 2
-        else:
-            obs_mod_in = 3
+            obs_mod_in -= 1
+        if self.drop_f5:
+            obs_mod_in -= 1
+
         return obs_mod_in * self.observer_instance.out_dim + 1
 
     @property
@@ -172,6 +175,7 @@ def get(
     dont_train=False,
     drifting_obs=False,
     drop_m1=False,
+    drop_f5=False,
     cuda=None,
 ):
 
@@ -318,6 +322,7 @@ def get(
         dont_train,
         drifting_obs,
         drop_m1,
+        drop_f5,
         cuda,
         holdout_pct,
     )
