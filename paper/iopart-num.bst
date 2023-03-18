@@ -1360,6 +1360,7 @@ FUNCTION {article}
       format.pages output
     }
   if$
+  format.title output
   format.issn output
   format.note output
   format.eprint output
