@@ -355,14 +355,19 @@ class MichaelsRNN(nn.Module):
         ret = self.fc(output[:, : self.num_neurons_per_module])
         return ret
 
-    def observe(self, obs_model, drop_module_idx=None):
+    def observe(self, obs_model, drop_module_idx=None, drop_neuron_mask=None):
         outputs = []
 
         for midx in range(self.num_modules):
             if midx == drop_module_idx:
                 continue
 
-            act = self.prev_output[
+            if drop_neuron_mask is not None:
+                po = self.prev_output * drop_neuron_mask.unsqueeze(0)
+            else:
+                po = self.prev_output
+
+            act = po[
                 :,
                 midx
                 * self.num_neurons_per_module : (midx + 1)

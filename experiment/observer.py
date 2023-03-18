@@ -62,6 +62,37 @@ class ObserverGaussian1d(Observer):
         return f"gaussian{self.out_dim}.{self.sigma}"
 
 
+class ObserverGaussian1dMasked(Observer):
+    def __init__(self, in_dim, mask, out_dim=20, sigma=1.75, cuda=None):
+        super(ObserverGaussian1dMasked, self).__init__()
+        self._in_dim = in_dim
+        self._out_dim = out_dim
+        self._cuda = cuda
+        self.sigma = sigma
+
+        self.norm, self.weights = gaussian_array_weights(
+            in_dim, out_dim, sigma, normalize=True
+        )
+        self.weights = torch.tensor(
+            self.weights.reshape((1,) + self.weights.shape)
+        ).float()
+
+        self.mask = torch.tensor(mask).unsqueeze(0)
+
+        if cuda is not None:
+            self.weights = self.weights.cuda(cuda)
+            self.mask = self.mask.cuda(cuda)
+
+    def reduce(self, x):
+        # Note: weights may broadcast up if we have batches
+        reduced = self.weights @ x.reshape(x.shape + (1,))
+        masked = reduced * self._mask
+        return masked.squeeze(axis=-1).detach()
+
+    def __str__(self):
+        return f"gaussianMasked{self.out_dim}.{self.sigma}"
+
+
 class ObserverGaussian1dDrifting(ObserverGaussian1d):
     def __init__(self, in_dim, out_dim=20, sigma=1.75, drift_std=0.0005, cuda=None):
         super(ObserverGaussian1dDrifting, self).__init__(
@@ -110,5 +141,6 @@ class ObserverPassthrough(Observer):
 
 class ObserverType(enum.Enum):
     gaussian = ObserverGaussian1d
+    masked = ObserverGaussian1dMasked
     drifting_gaussian = ObserverGaussian1dDrifting
     passthrough = ObserverPassthrough

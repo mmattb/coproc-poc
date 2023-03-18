@@ -87,14 +87,20 @@ def get_aip_f5_con_lesion_config(cuda=None, coadapt=True, **kwargs):
             (0, 1, 2, 3),
         ],
     )
+
+    drop_neuron_mask = torch.ones(300)
+    drop_neuron_mask[250:] = 0.0
+    drop_neuron_mask[100:150] = 0.0
+
     return get_config(
         cuda=cuda,
         coadapt=coadapt,
-        drop_f5=True,
         lesion_type=lesion_type,
         lesion_args=lesion_args,
-        stim_pad_left_neurons=100,
-        stim_pad_right_neurons=100,
+        num_stim_neurons=100,
+        stim_pad_left_neurons=150,
+        stim_pad_right_neurons=50,
+        drop_neuron_mask=drop_neuron_mask,
         **kwargs,
     )
 
@@ -273,10 +279,11 @@ class Experiment:
         if cfg.drop_m1:
             self.obs_drop_module_idx = 0
         elif cfg.drop_f5:
-            print("Dropping F5")
             self.obs_drop_module_idx = 1
         else:
             self.obs_drop_module_idx = None
+
+        self.drop_neuron_mask = cfg.drop_neuron_mask
 
     @property
     def cfg(self):
@@ -403,7 +410,8 @@ class Experiment:
 
             for tidx in range(steps - 1):
                 obs_raw = self.mike.observe(
-                    self.observer, drop_module_idx=self.obs_drop_module_idx
+                    self.observer, drop_module_idx=self.obs_drop_module_idx,
+                    drop_neuron_mask=self.drop_neuron_mask
                 )
                 obs = obs_raw + (trial_end[:, tidx, :],)
 

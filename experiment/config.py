@@ -37,6 +37,7 @@ class Config:
     drifting_obs: bool
     drop_m1: bool
     drop_f5: bool
+    drop_neuron_mask: torch.Tensor
     cuda: typing.Any
     holdout_pct: float
 
@@ -170,6 +171,7 @@ def get(
     obs_sigma=DEFAULT_OBS_SIGMA,
     out_dim=DEFAULT_OUT_DIM,
     holdout_pct=DEFAULT_HOLDOUT_PCT,
+    drop_neuron_mask=None,
     recover_after_lesion=False,
     coadapt=False,
     dont_train=False,
@@ -301,6 +303,9 @@ def get(
 
     dataset, loader_train, loader_test = get_dataset(holdout_pct=holdout_pct, cuda=cuda)
 
+    if cuda is not None:
+        drop_neuron_mask = drop_neuron_mask.cuda(cuda)
+
     cfg_out = Config(
         observer_instance,
         stimulus,
@@ -323,6 +328,7 @@ def get(
         drifting_obs,
         drop_m1,
         drop_f5,
+        drop_neuron_mask,
         cuda,
         holdout_pct,
     )
