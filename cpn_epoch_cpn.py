@@ -1,7 +1,7 @@
 import torch
 
 from cpn_utils import CPNENStats, calc_pred_loss, calc_train_loss, EpochType
-from experiment import utils
+from experiment import lesion, utils
 
 
 class CPNEpochCPN:
@@ -38,8 +38,16 @@ class CPNEpochCPN:
 
         if cfg.recover_after_lesion:
             self.set_opt_lr = self.lr_sched_aggressive_refine3
+            self.cpn_epoch_max_len = 200
+        elif (type(cfg.lesion_instance) is lesion.LesionType.outputs.value and
+                cfg.lesion_instance.start_idx == 0 and
+                cfg.lesion_instance.end_idx == 50):
+            # M1 is an odd beast...
+            self.set_opt_lr = self.lr_sched_aggressive_refine3
+            self.cpn_epoch_max_len = 100
         else:
             self.set_opt_lr = self.lr_sched_standard
+            self.cpn_epoch_max_len = 200
 
         self.reset()
 
@@ -210,7 +218,7 @@ class CPNEpochCPN:
         self.recent_task_losses.append(rtl)
         # if (loss_history.max_pct_recov > 0.99 and not self.cfg.dont_train and
         if (
-            loss_history.max_pct_recov > 0.9
+            loss_history.max_pct_recov > 0.99
             and not self.cfg.dont_train
             and loss_history.lesioned_loss > loss_history.healthy_loss
         ):
@@ -220,7 +228,7 @@ class CPNEpochCPN:
             we_are_done = True
             en_is_ready = False
         # For now: just run for awhile
-        elif self.cfg.dont_train and loss_history.eidx == 200000:
+        elif self.cfg.dont_train and loss_history.eidx == 250000:
             we_are_done = True
             en_is_ready = False
         else:
@@ -232,8 +240,7 @@ class CPNEpochCPN:
             elif self.recent_pred_loss > max(rtl / 10, 6e-4):
                 en_is_ready = False
                 self.reset_period()
-            # elif self.checkpoint_eidx >= 200:
-            elif self.checkpoint_eidx >= 100:
+            elif self.checkpoint_eidx >= self.cpn_epoch_max_len:
                 en_is_ready = False
                 self.reset_period()
             elif self.checkpoint_eidx > 30:
