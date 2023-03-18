@@ -410,8 +410,9 @@ class Experiment:
 
             for tidx in range(steps - 1):
                 obs_raw = self.mike.observe(
-                    self.observer, drop_module_idx=self.obs_drop_module_idx,
-                    drop_neuron_mask=self.drop_neuron_mask
+                    self.observer,
+                    drop_module_idx=self.obs_drop_module_idx,
+                    drop_neuron_mask=self.drop_neuron_mask,
                 )
                 obs = obs_raw + (trial_end[:, tidx, :],)
 

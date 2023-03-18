@@ -160,7 +160,9 @@ class CPNEpochEN:
             en_is_ready = False
 
         # Every 10 epochs let's validate/test
-        next_is_validation = not en_is_ready and not is_validation and (self.checkpoint_eidx % 10) == 0
+        next_is_validation = (
+            not en_is_ready and not is_validation and (self.checkpoint_eidx % 10) == 0
+        )
 
         user_data = CPNENStats(
             "en_offline" if reused_data else "en",

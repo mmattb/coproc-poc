@@ -99,16 +99,16 @@ class MichaelsRNN(nn.Module):
                 for j in range(npm):
                     possible_connections.append((i, j))
 
-            for c12 in random.sample(possible_connections, int(sparsity * npm ** 2)):
+            for c12 in random.sample(possible_connections, int(sparsity * npm**2)):
                 sparse_mask[c12[0] + npm, c12[1]] = 1
 
-            for c23 in random.sample(possible_connections, int(sparsity * npm ** 2)):
+            for c23 in random.sample(possible_connections, int(sparsity * npm**2)):
                 sparse_mask[c23[0] + (npm * 2), c23[1] + npm] = 1
 
-            for c21 in random.sample(possible_connections, int(sparsity * npm ** 2)):
+            for c21 in random.sample(possible_connections, int(sparsity * npm**2)):
                 sparse_mask[c21[0], c21[1] + npm] = 1
 
-            for c32 in random.sample(possible_connections, int(sparsity * npm ** 2)):
+            for c32 in random.sample(possible_connections, int(sparsity * npm**2)):
                 sparse_mask[c32[0] + npm, c32[1] + (npm * 2)] = 1
 
             # Zero grad mask: used to 0 out gradients during training,

@@ -39,9 +39,11 @@ class CPNEpochCPN:
         if cfg.recover_after_lesion:
             self.set_opt_lr = self.lr_sched_aggressive_refine3
             self.cpn_epoch_max_len = 200
-        elif (type(cfg.lesion_instance) is lesion.LesionType.outputs.value and
-                cfg.lesion_instance.start_idx == 0 and
-                cfg.lesion_instance.end_idx == 50):
+        elif (
+            type(cfg.lesion_instance) is lesion.LesionType.outputs.value
+            and cfg.lesion_instance.start_idx == 0
+            and cfg.lesion_instance.end_idx == 50
+        ):
             # M1 is an odd beast...
             self.set_opt_lr = self.lr_sched_aggressive_refine3
             self.cpn_epoch_max_len = 100

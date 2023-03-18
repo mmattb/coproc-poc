@@ -16,10 +16,10 @@ import experiment
 import cpn
 
 # Connection
-#cfg = experiment.experiment.get_config(coadapt=False, cuda="1")
+# cfg = experiment.experiment.get_config(coadapt=False, cuda="1")
 
 # AIP
-#cfg = experiment.experiment.get_aip_lesion_config(cuda="3", coadapt=True)
+# cfg = experiment.experiment.get_aip_lesion_config(cuda="3", coadapt=True)
 
 # M1
 cfg = experiment.experiment.get_m1_lesion_config(coadapt=False, cuda="3")
@@ -31,4 +31,3 @@ my_coproc = cpn.CPN_EN_CoProc(cfg, log_dir=LOG_DIR)
 my_experiment = experiment.experiment.stage(my_coproc, cfg)
 
 loss_history = my_experiment.run()
-
