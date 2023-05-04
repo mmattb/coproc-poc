@@ -1,15 +1,29 @@
 
 default: all
 
-all:
-	$(MAKE) article
-	$(MAKE) bib
-	$(MAKE) article
-	$(MAKE) article
+all: article
 
 article:
+	$(MAKE) articletex
+	$(MAKE) bib
+	$(MAKE) articletex
+	$(MAKE) articletex
+
+articletex:
 	pdflatex article.tex
 
 bib:
 	bibtex article.aux
 
+
+anon:
+	$(MAKE) articleanontex
+	$(MAKE) bibanon
+	$(MAKE) articleanontex
+	$(MAKE) articleanontex
+
+articleanontex:
+	pdflatex article_anon.tex
+
+bibanon:
+	bibtex article_anon.aux
